@@ -1,0 +1,186 @@
+import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useFirestore } from '../firebase/provider';
+import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { Skeleton } from '../components/ui/skeleton';
+import { ProductCard } from '../components/ProductCard';
+import { Button } from '../components/ui/button';
+import { useUser } from '../firebase/auth/use-user';
+import { ChevronLeft, Star } from 'lucide-react';
+
+export default function SellerProfilePage() {
+  const params = useParams();
+  const sellerId = params?.sellerId;
+  const navigate = useNavigate();
+  const firestore = useFirestore();
+  const { user: authUser } = useUser();
+
+  const [seller, setSeller] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  // Fetch seller information
+  useEffect(() => {
+    if (!firestore || !sellerId) return;
+
+    const fetchSeller = async () => {
+      setLoading(true);
+      try {
+        const userRef = doc(firestore, 'users', sellerId);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setSeller({ id: userSnap.id, ...userSnap.data() });
+        } else {
+          setNotFound(true);
+        }
+      } catch (error) {
+        console.error('Error fetching seller:', error);
+        setNotFound(true);
+      }
+      setLoading(false);
+    };
+
+    fetchSeller();
+  }, [firestore, sellerId]);
+
+  // Fetch seller's products
+  useEffect(() => {
+    if (!firestore || !sellerId) return;
+
+    setProductsLoading(true);
+    const q = query(
+      collection(firestore, 'products'),
+      where('createdBy', '==', sellerId),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const prods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProducts(prods);
+      setProductsLoading(false);
+    }, (error) => {
+      console.error('Error fetching seller products:', error);
+      setProductsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [firestore, sellerId]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Skeleton className="h-6 w-32 mb-8" />
+        <Skeleton className="h-32 w-32 rounded-full mb-8" />
+        <Skeleton className="h-8 w-64 mb-4" />
+        <Skeleton className="h-4 w-96 mb-8" />
+      </div>
+    );
+  }
+
+  if (notFound && !loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8">
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Go Back
+        </Button>
+        <div className="text-center py-20">
+          <h1 className="text-4xl font-bold">404 - Seller Not Found</h1>
+          <p className="text-muted-foreground mt-4">The seller you are looking for does not exist.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!seller) {
+    return null;
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* Back Button */}
+      <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8">
+        <ChevronLeft className="h-4 w-4 mr-2" />
+        Go Back
+      </Button>
+
+      {/* Seller Header */}
+      <div className="mb-12 pb-8 border-b">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-8 mb-6">
+          {/* Seller Avatar */}
+          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0">
+            <span className="text-5xl font-headline font-bold text-primary">
+              {seller.fullName?.charAt(0).toUpperCase()}
+            </span>
+          </div>
+
+          {/* Seller Info */}
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold font-headline mb-2">{seller.fullName}</h1>
+
+            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground mb-4">
+              <div>
+                <span className="font-semibold text-foreground">{products.length}</span>
+                <span className="ml-2">Product{products.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex items-center">
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
+                <span className="font-semibold text-foreground">4.5</span>
+                <span className="ml-2">(Based on reviews)</span>
+              </div>
+            </div>
+
+            <p className="text-muted-foreground mb-4">
+              Member since {new Date(seller.createdAt?.toDate?.() || seller.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long'
+              })}
+            </p>
+
+            {/* Action Button */}
+            {authUser && authUser.uid !== sellerId && (
+              <Button className="mr-3">
+                Message Seller
+              </Button>
+            )}
+            {authUser && authUser.uid === sellerId && (
+              <Button variant="secondary">
+                Edit Profile
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Products Section */}
+      <div>
+        <h2 className="text-3xl font-bold font-headline mb-8">Products ({products.length})</h2>
+
+        {productsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : products.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} user={authUser} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">This seller has no active products yet.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

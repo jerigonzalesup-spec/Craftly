@@ -1,0 +1,54 @@
+{
+  "landingHero": {
+    "src": "/images/landing-hero.jpg",
+    "hint": "Handicraft tools and colorful craft supplies workspace"
+  },
+  "loginArt": {
+    "src": "/images/loginArt.jpg",
+    "hint": "Colorful beads and handicraft crafting supplies"
+  },
+  "registerArt": {
+    "src": "/images/registerArt.jpg",
+    "hint": "Handicraft workspace with colorful tools and materials"
+  },
+  "aboutArtisan": {
+    "src": "https://source.unsplash.com/500x500/?artisan,hands,crafting",
+    "hint": "Artisan hands crafting beautiful handmade products"
+  },
+  "marketplaceHero": {
+    "src": "/images/landing-hero.jpg",
+    "hint": "Colorful handcrafted artisan items and products display"
+  },
+  "categoryCrafts": {
+    "src": "/images/categoryCrafts.png",
+    "hint": "Various handicraft tools and DIY crafting supplies"
+  },
+  "categoryAccessories": {
+    "src": "/images/categoryAccessories.png",
+    "hint": "Handcrafted accessories - scarves, bags, and jewelry"
+  },
+  "categoryHomeDecor": {
+    "src": "/images/categoryHomeDecor.png",
+    "hint": "Handmade home decoration items and wall art"
+  },
+  "categoryGifts": {
+    "src": "/images/categoryGifts.jpg",
+    "hint": "Beautiful handmade gift sets and collections"
+  },
+  "categoryJewelry": {
+    "src": "https://source.unsplash.com/400x300/?jewelry,handmade,accessories",
+    "hint": "Artisan handcrafted jewelry and accessories"
+  },
+  "categoryClothing": {
+    "src": "https://source.unsplash.com/400x300/?clothing,handmade,fashion",
+    "hint": "Handmade clothing and wearable art"
+  },
+  "categoryPottery": {
+    "src": "https://source.unsplash.com/400x300/?pottery,ceramic,handmade",
+    "hint": "Beautiful hand-crafted pottery and ceramic pieces"
+  },
+  "categoryArtCollectibles": {
+    "src": "https://source.unsplash.com/400x300/?art,collectible,handmade",
+    "hint": "Unique art pieces and collectible handmade items"
+  }
+}

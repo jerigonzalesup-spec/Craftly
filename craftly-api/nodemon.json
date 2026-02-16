@@ -1,0 +1,11 @@
+{
+  "watch": [".", "config", "controllers", "middleware", "routes"],
+  "ignore": ["node_modules", ".git", "*.log"],
+  "ext": "js,json",
+  "delay": 1000,
+  "restartable": "rs",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "verbose": true
+}

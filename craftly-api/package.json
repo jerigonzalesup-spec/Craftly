@@ -1,0 +1,28 @@
+{
+  "name": "craftly-api",
+  "version": "1.0.0",
+  "description": "Craftly Backend API - Wraps Firebase for Web and Android",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon server.js",
+    "dev": "nodemon server.js",
+    "prod": "node server.js"
+  },
+  "keywords": [
+    "craftly",
+    "api",
+    "firebase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "firebase-admin": "^12.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
