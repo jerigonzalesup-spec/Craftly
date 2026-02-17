@@ -8,10 +8,15 @@ import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.craftly.app.R
+import com.craftly.app.data.repository.AuthRepository
 import com.craftly.app.presentation.ui.MainActivity
+import kotlinx.coroutines.launch
 
 class RegisterActivity : AppCompatActivity() {
+
+    private val authRepository = AuthRepository()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
@@ -27,10 +32,9 @@ class RegisterActivity : AppCompatActivity() {
             val email = emailEditText.text.toString().trim()
             val password = passwordEditText.text.toString().trim()
             val fullName = fullNameEditText.text.toString().trim()
-            val role = if (sellerRadioButton.isChecked) "seller" else "buyer"
 
             if (validateInput(email, password, fullName)) {
-                performRegister(email, password, fullName, role)
+                performRegister(email, password, fullName)
             }
         }
 
@@ -61,19 +65,38 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
-    private fun performRegister(email: String, password: String, fullName: String, role: String) {
-        // TODO: Implement register logic with API
-        // For now, save dummy session and go to main activity
-        AuthManager.saveSession(
-            this,
-            userId = "test_user_${System.currentTimeMillis()}",
-            email = email,
-            fullName = fullName,
-            role = role,
-            token = "dummy_token"
-        )
-        Toast.makeText(this, "Registration successful", Toast.LENGTH_SHORT).show()
-        startActivity(Intent(this, MainActivity::class.java))
-        finish()
+    private fun performRegister(email: String, password: String, fullName: String) {
+        val registerButton = findViewById<Button>(R.id.registerButton)
+        registerButton.isEnabled = false
+        registerButton.text = "Registering..."
+
+        lifecycleScope.launch {
+            val result = authRepository.register(email, password, fullName)
+
+            result.onSuccess { authResponse ->
+                // Save session with user data from API response
+                AuthManager.saveSession(
+                    this@RegisterActivity,
+                    userId = authResponse.uid,
+                    email = authResponse.email,
+                    fullName = authResponse.displayName,
+                    role = authResponse.role,
+                    token = authResponse.uid  // Use uid as token
+                )
+                Toast.makeText(this@RegisterActivity, "Registration successful!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this@RegisterActivity, MainActivity::class.java))
+                finish()
+            }
+
+            result.onFailure { error ->
+                registerButton.isEnabled = true
+                registerButton.text = "Register"
+                Toast.makeText(
+                    this@RegisterActivity,
+                    "Registration failed: ${error.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 }

@@ -7,10 +7,15 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.craftly.app.R
+import com.craftly.app.data.repository.AuthRepository
 import com.craftly.app.presentation.ui.MainActivity
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
+
+    private val authRepository = AuthRepository()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
@@ -49,17 +54,37 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun performLogin(email: String, password: String) {
-        // TODO: Implement login logic with API
-        // For now, save dummy session and go to main activity
-        AuthManager.saveSession(
-            this,
-            userId = "test_user_123",
-            email = email,
-            fullName = "Test User",
-            role = "buyer",
-            token = "dummy_token"
-        )
-        startActivity(Intent(this, MainActivity::class.java))
-        finish()
+        val loginButton = findViewById<Button>(R.id.loginButton)
+        loginButton.isEnabled = false
+        loginButton.text = "Logging in..."
+
+        lifecycleScope.launch {
+            val result = authRepository.login(email, password)
+
+            result.onSuccess { authResponse ->
+                // Save session with actual user data from API response
+                AuthManager.saveSession(
+                    this@LoginActivity,
+                    userId = authResponse.uid,
+                    email = authResponse.email,
+                    fullName = authResponse.displayName,
+                    role = authResponse.role,
+                    token = authResponse.uid  // Use uid as token
+                )
+                Toast.makeText(this@LoginActivity, "Login successful!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                finish()
+            }
+
+            result.onFailure { error ->
+                loginButton.isEnabled = true
+                loginButton.text = "Login"
+                Toast.makeText(
+                    this@LoginActivity,
+                    "Login failed: ${error.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 }

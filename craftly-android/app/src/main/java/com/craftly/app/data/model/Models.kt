@@ -113,7 +113,7 @@ data class RegisterRequest(
 data class AuthResponse(
     val uid: String = "",
     val email: String = "",
-    val fullName: String = "",
+    val displayName: String = "",
     val role: String = "",
-    val token: String = ""
+    val recoveryCodes: List<String>? = null
 )
