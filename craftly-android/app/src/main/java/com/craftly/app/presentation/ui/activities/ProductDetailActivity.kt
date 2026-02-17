@@ -20,7 +20,7 @@ import com.craftly.app.data.model.User
 import com.craftly.app.presentation.ui.adapters.ImageCarouselAdapter
 import com.craftly.app.presentation.ui.adapters.ReviewAdapter
 import com.google.gson.Gson
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,8 +67,11 @@ class ProductDetailActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "===== ProductDetailActivity onCreate START =====")
         setContentView(R.layout.activity_product_detail)
+        Log.d(TAG, "✓ Layout set")
         apiService = RetrofitClient.getApiService()
+        Log.d(TAG, "✓ API Service initialized: ${apiService != null}")
 
         Log.d(TAG, "ProductDetailActivity created")
 
@@ -83,45 +86,82 @@ class ProductDetailActivity : AppCompatActivity() {
         }
 
         try {
+            Log.d(TAG, "Calling initializeViews()...")
             initializeViews()
+            Log.d(TAG, "✓ initializeViews() completed")
+
+            Log.d(TAG, "Calling setupListeners()...")
             setupListeners()
+            Log.d(TAG, "✓ setupListeners() completed")
+
+            Log.d(TAG, "Calling setupReviewsRecyclerView()...")
             setupReviewsRecyclerView()
+            Log.d(TAG, "✓ setupReviewsRecyclerView() completed")
+
+            Log.d(TAG, "Calling loadProductDetails()...")
             loadProductDetails()
+            Log.d(TAG, "✓ loadProductDetails() called (async)")
         } catch (e: Exception) {
             Log.e(TAG, "Error in onCreate: ${e.message}", e)
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             finish()
         }
+        Log.d(TAG, "===== ProductDetailActivity onCreate END =====")
     }
 
     private fun initializeViews() {
         try {
+            Log.d(TAG, "Starting view initialization...")
             backButton = findViewById(R.id.backButton)
+            Log.d(TAG, "✓ backButton initialized")
             favoriteButton = findViewById(R.id.favoriteButton)
+            Log.d(TAG, "✓ favoriteButton initialized")
             loadingProgressBar = findViewById(R.id.loadingProgressBar)
+            Log.d(TAG, "✓ loadingProgressBar initialized")
             imageViewPager = findViewById(R.id.imageViewPager)
+            Log.d(TAG, "✓ imageViewPager initialized")
             pageIndicator = findViewById(R.id.pageIndicator)
+            Log.d(TAG, "✓ pageIndicator initialized")
             productName = findViewById(R.id.productName)
+            Log.d(TAG, "✓ productName initialized")
             productRating = findViewById(R.id.productRating)
+            Log.d(TAG, "✓ productRating initialized")
             reviewCount = findViewById(R.id.reviewCount)
+            Log.d(TAG, "✓ reviewCount initialized")
             sellerName = findViewById(R.id.sellerName)
+            Log.d(TAG, "✓ sellerName initialized")
             productPrice = findViewById(R.id.productPrice)
+            Log.d(TAG, "✓ productPrice initialized")
             productDescription = findViewById(R.id.productDescription)
+            Log.d(TAG, "✓ productDescription initialized")
             materialsUsed = findViewById(R.id.materialsUsed)
+            Log.d(TAG, "✓ materialsUsed initialized")
             stockCount = findViewById(R.id.stockCount)
+            Log.d(TAG, "✓ stockCount initialized")
             decrementQuantity = findViewById(R.id.decrementQuantity)
+            Log.d(TAG, "✓ decrementQuantity initialized")
             quantityInput = findViewById(R.id.quantityInput)
+            Log.d(TAG, "✓ quantityInput initialized")
             incrementQuantity = findViewById(R.id.incrementQuantity)
+            Log.d(TAG, "✓ incrementQuantity initialized")
             addToCartButton = findViewById(R.id.addToCartButton)
+            Log.d(TAG, "✓ addToCartButton initialized")
             buyNowButton = findViewById(R.id.buyNowButton)
+            Log.d(TAG, "✓ buyNowButton initialized")
             reviewsRecyclerView = findViewById(R.id.reviewsRecyclerView)
+            Log.d(TAG, "✓ reviewsRecyclerView initialized")
             noReviewsMessage = findViewById(R.id.noReviewsMessage)
+            Log.d(TAG, "✓ noReviewsMessage initialized")
             reviewsLoadingProgress = findViewById(R.id.reviewsLoadingProgress)
+            Log.d(TAG, "✓ reviewsLoadingProgress initialized")
             deliveryMethodsText = findViewById(R.id.deliveryMethodsText)
+            Log.d(TAG, "✓ deliveryMethodsText initialized")
 
             Log.d(TAG, "All views initialized successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing views: ${e.message}", e)
+            e.printStackTrace()
             throw e
         }
     }
@@ -178,21 +218,30 @@ class ProductDetailActivity : AppCompatActivity() {
         Log.d(TAG, "Loading product details for ID: $productId")
         loadingProgressBar.visibility = View.VISIBLE
 
-        CoroutineScope(Dispatchers.Main).launch {
+        lifecycleScope.launch {
             try {
+                Log.d(TAG, "Coroutine started for product loading")
                 if (apiService == null) {
+                    Log.e(TAG, "API Service is NULL!")
                     throw Exception("API Service is null")
                 }
+                Log.d(TAG, "API Service is OK, making network call...")
 
                 val response = withContext(Dispatchers.IO) {
-                    apiService!!.getProductById(productId!!)
+                    Log.d(TAG, "Making API call for product ID: $productId")
+                    val result = apiService!!.getProductById(productId!!)
+                    Log.d(TAG, "API call completed, response received")
+                    result
                 }
 
-                Log.d(TAG, "API Response: success=${response.success}, data=${response.data?.id}")
+                Log.d(TAG, "API Response: success=${response.success}, hasData=${response.data != null}")
+                if (response.data != null) {
+                    Log.d(TAG, "Product name: ${response.data!!.name}")
+                }
 
                 if (response.success && response.data != null) {
                     product = response.data
-                    Log.d(TAG, "Product loaded: ${product?.name}")
+                    Log.d(TAG, "✓ Product loaded: ${product?.name}")
                     displayProductDetails()
                     loadReviews()
                     fetchSellerName()
@@ -205,12 +254,12 @@ class ProductDetailActivity : AppCompatActivity() {
                     ).show()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading product: ${e.message}", e)
+                Log.e(TAG, "CRASH! Error loading product: ${e.message}", e)
                 e.printStackTrace()
                 Toast.makeText(
                     this@ProductDetailActivity,
-                    "Error: ${e.message}",
-                    Toast.LENGTH_SHORT
+                    "Error loading product: ${e.message}",
+                    Toast.LENGTH_LONG
                 ).show()
             } finally {
                 loadingProgressBar.visibility = View.GONE
@@ -297,46 +346,78 @@ class ProductDetailActivity : AppCompatActivity() {
     private fun fetchSellerName() {
         product?.let { p ->
             Log.d(TAG, "Fetching seller profile for: ${p.createdBy}")
-            CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    if (apiService == null) {
-                        Log.e(TAG, "API Service is null when fetching seller")
-                        return@launch
-                    }
+            try {
+                lifecycleScope.launch {
+                    Log.d(TAG, "Seller coroutine scope created")
+                    try {
+                        if (apiService == null) {
+                            Log.e(TAG, "API Service is null when fetching seller")
+                            return@launch
+                        }
+                        Log.d(TAG, "Calling API for seller profile...")
 
-                    val response = withContext(Dispatchers.IO) {
-                        apiService!!.getUserProfile(p.createdBy)
-                    }
+                        val response = withContext(Dispatchers.IO) {
+                            Log.d(TAG, "Making seller API call with ID: ${p.createdBy}")
+                            val result = apiService!!.getUserProfile(p.createdBy)
+                            Log.d(TAG, "Seller API response received")
+                            result
+                        }
 
-                    if (response.success && response.data != null) {
-                        seller = response.data
-                        Log.d(TAG, "Seller loaded: ${seller?.fullName}")
-                        displaySellerInfo()
-                    } else {
-                        Log.w(TAG, "Failed to load seller: ${response.message}")
-                        sellerName.text = "Unknown Seller"
+                        Log.d(TAG, "Seller response back on main thread: success=${response.success}, hasData=${response.data != null}")
+
+                        if (response.success && response.data != null) {
+                            seller = response.data
+                            Log.d(TAG, "Seller loaded: ${seller?.fullName}")
+                            Log.d(TAG, "Calling displaySellerInfo()...")
+                            displaySellerInfo()
+                            Log.d(TAG, "✓ displaySellerInfo() returned")
+                        } else {
+                            Log.w(TAG, "Failed to load seller: ${response.message}")
+                            sellerName.text = "Unknown Seller"
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "CRASH! Error in seller coroutine: ${e.message}", e)
+                        e.printStackTrace()
+                        try {
+                            sellerName.text = "Unknown Seller"
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Even setting seller name failed: ${ex.message}")
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error fetching seller: ${e.message}", e)
-                    sellerName.text = "Unknown Seller"
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "CRASH! Error creating seller coroutine: ${e.message}", e)
+                e.printStackTrace()
             }
         }
     }
 
     private fun displaySellerInfo() {
+        Log.d(TAG, "displaySellerInfo() called")
         seller?.let { s ->
             try {
-                sellerName.text = s.fullName
+                Log.d(TAG, "Seller object exists, fullName: ${s.fullName}")
 
+                Log.d(TAG, "Setting seller name text...")
+                sellerName.text = s.fullName
+                Log.d(TAG, "✓ Seller name text set")
+
+                Log.d(TAG, "Setting seller name click listener...")
                 sellerName.setOnClickListener {
                     Log.d(TAG, "Seller name clicked")
-                    val intent = Intent(this@ProductDetailActivity, SellerProfileActivity::class.java)
-                    intent.putExtra("sellerId", s.uid)
-                    startActivity(intent)
+                    try {
+                        val intent = Intent(this@ProductDetailActivity, SellerProfileActivity::class.java)
+                        intent.putExtra("sellerId", s.uid)
+                        startActivity(intent)
+                        Log.d(TAG, "✓ Seller profile activity started")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error starting seller profile activity: ${e.message}")
+                    }
                 }
+                Log.d(TAG, "✓ Click listener set")
 
                 // Display delivery methods
+                Log.d(TAG, "Processing delivery methods: allowShipping=${s.allowShipping}, allowPickup=${s.allowPickup}")
                 val deliveryMethods = mutableListOf<String>()
                 if (s.allowShipping) {
                     deliveryMethods.add("Shipping Available")
@@ -344,15 +425,26 @@ class ProductDetailActivity : AppCompatActivity() {
                 if (s.allowPickup) {
                     deliveryMethods.add("Local Pickup Available")
                 }
+
+                Log.d(TAG, "Delivery methods: $deliveryMethods")
+                Log.d(TAG, "Setting delivery methods text...")
                 if (deliveryMethods.isEmpty()) {
                     deliveryMethodsText.text = "No delivery methods available"
                 } else {
                     deliveryMethodsText.text = "Delivery: ${deliveryMethods.joinToString(", ")}"
                 }
+                Log.d(TAG, "✓ Delivery methods text set")
 
                 Log.d(TAG, "Seller info displayed: ${s.fullName}, Methods: $deliveryMethods")
             } catch (e: Exception) {
-                Log.e(TAG, "Error displaying seller info: ${e.message}")
+                Log.e(TAG, "CRASH! Error displaying seller info: ${e.message}", e)
+                e.printStackTrace()
+                try {
+                    sellerName.text = "Unknown Seller"
+                    deliveryMethodsText.text = "Delivery info unavailable"
+                } catch (ex: Exception) {
+                    Log.e(TAG, "Error setting fallback seller info: ${ex.message}")
+                }
             }
         }
     }
@@ -361,68 +453,100 @@ class ProductDetailActivity : AppCompatActivity() {
         Log.d(TAG, "Loading reviews for product: $productId")
         reviewsLoadingProgress.visibility = View.VISIBLE
 
-        CoroutineScope(Dispatchers.Main).launch {
+        lifecycleScope.launch {
+            Log.d(TAG, "Reviews coroutine launched")
             try {
                 if (apiService == null) {
                     Log.e(TAG, "API Service is null when loading reviews")
                     return@launch
                 }
+                Log.d(TAG, "Making reviews API call...")
 
                 val response = withContext(Dispatchers.IO) {
-                    apiService!!.getReviews(productId!!)
+                    Log.d(TAG, "IO thread - calling getReviews API...")
+                    val result = apiService!!.getReviews(productId!!)
+                    Log.d(TAG, "Reviews API response received")
+                    result
                 }
 
+                Log.d(TAG, "Back on main thread with reviews response: success=${response.success}, hasData=${response.data != null}")
+
                 if (response.success && response.data != null) {
+                    Log.d(TAG, "Processing reviews data...")
                     val reviewsData = response.data
+                    Log.d(TAG, "Review data keys: ${reviewsData.keys}")
+
                     @Suppress("UNCHECKED_CAST")
                     val reviewList = reviewsData["reviews"] as? List<Map<String, Any>> ?: emptyList()
+                    Log.d(TAG, "Extracted ${reviewList.size} reviews from data")
 
+                    Log.d(TAG, "Mapping review objects...")
                     reviews = reviewList.map { reviewMap ->
-                        Review(
-                            id = (reviewMap["id"] as? String) ?: "",
-                            userId = (reviewMap["userId"] as? String) ?: "",
-                            userName = (reviewMap["userName"] as? String) ?: "Anonymous",
-                            rating = (reviewMap["rating"] as? Number)?.toInt() ?: 5,
-                            comment = (reviewMap["comment"] as? String) ?: "",
-                            createdAt = when (val date = reviewMap["createdAt"]) {
-                                is String -> {
-                                    try {
-                                        SimpleDateFormat(
-                                            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-                                            Locale.getDefault()
-                                        ).parse(date)?.time ?: System.currentTimeMillis()
-                                    } catch (e: Exception) {
-                                        System.currentTimeMillis()
+                        try {
+                            Review(
+                                id = (reviewMap["id"] as? String) ?: "",
+                                userId = (reviewMap["userId"] as? String) ?: "",
+                                userName = (reviewMap["userName"] as? String) ?: "Anonymous",
+                                rating = (reviewMap["rating"] as? Number)?.toInt() ?: 5,
+                                comment = (reviewMap["comment"] as? String) ?: "",
+                                createdAt = when (val date = reviewMap["createdAt"]) {
+                                    is String -> {
+                                        try {
+                                            SimpleDateFormat(
+                                                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                                                Locale.getDefault()
+                                            ).parse(date)?.time ?: System.currentTimeMillis()
+                                        } catch (e: Exception) {
+                                            System.currentTimeMillis()
+                                        }
                                     }
-                                }
 
-                                is Number -> date.toLong()
-                                else -> System.currentTimeMillis()
-                            }
-                        )
+                                    is Number -> date.toLong()
+                                    else -> System.currentTimeMillis()
+                                }
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error mapping review: ${e.message}")
+                            Review()
+                        }
                     }.toMutableList()
 
-                    Log.d(TAG, "Loaded ${reviews.size} reviews")
+                    Log.d(TAG, "✓ Mapped ${reviews.size} reviews successfully")
 
                     if (reviews.isEmpty()) {
+                        Log.d(TAG, "No reviews found, showing no reviews message")
                         noReviewsMessage.visibility = View.VISIBLE
                         reviewsRecyclerView.visibility = View.GONE
                     } else {
+                        Log.d(TAG, "Found ${reviews.size} reviews, updating adapter...")
                         reviewsRecyclerView.visibility = View.VISIBLE
                         noReviewsMessage.visibility = View.GONE
+                        Log.d(TAG, "Calling adapter.updateReviews()...")
                         reviewAdapter.updateReviews(reviews)
+                        Log.d(TAG, "✓ Adapter updated successfully")
                     }
                 } else {
-                    Log.w(TAG, "No reviews or error loading reviews")
+                    Log.w(TAG, "No reviews or error loading reviews: ${response.message}")
                     noReviewsMessage.visibility = View.VISIBLE
                     reviewsRecyclerView.visibility = View.GONE
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading reviews: ${e.message}", e)
-                noReviewsMessage.visibility = View.VISIBLE
-                reviewsRecyclerView.visibility = View.GONE
+                Log.e(TAG, "CRASH! Error loading reviews: ${e.message}", e)
+                e.printStackTrace()
+                try {
+                    noReviewsMessage.visibility = View.VISIBLE
+                    reviewsRecyclerView.visibility = View.GONE
+                } catch (ex: Exception) {
+                    Log.e(TAG, "Error setting reviews UI on crash: ${ex.message}")
+                }
             } finally {
-                reviewsLoadingProgress.visibility = View.GONE
+                try {
+                    Log.d(TAG, "Finally block: hiding reviews progress bar")
+                    reviewsLoadingProgress.visibility = View.GONE
+                    Log.d(TAG, "✓ Reviews loading complete")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error hiding reviews progress bar: ${e.message}")
+                }
             }
         }
     }
