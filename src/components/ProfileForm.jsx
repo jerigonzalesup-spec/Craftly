@@ -44,6 +44,13 @@ const formSchema = z.object({
   country: z.string().optional().or(z.literal('')),
   gcashName: z.string().min(2, 'GCash name must be at least 2 characters.').optional().or(z.literal('')),
   gcashNumber: z.string().regex(/^(09|\+639)\d{9}$/, 'GCash number must be a valid PH mobile number (e.g., 09123456789 or +639123456789).').optional().or(z.literal('')),
+  // Shop Profile Fields
+  shopName: z.string().min(2, 'Shop name must be at least 2 characters.').optional().or(z.literal('')),
+  shopAddress: z.string().min(5, 'Shop address must include house number and street name').optional().or(z.literal('')),
+  shopBarangay: z.string().optional().or(z.literal('')),
+  shopCity: z.string().optional().or(z.literal('')),
+  allowShipping: z.boolean().optional(),
+  allowPickup: z.boolean().optional(),
 }).refine(data => {
   // If street address is provided, it must have house number and letters
   if (data.streetAddress && data.streetAddress.trim().length > 0) {
@@ -55,6 +62,17 @@ const formSchema = z.object({
 }, {
   message: 'Street address must include both house/building number and street name (e.g., "123 Main Street")',
   path: ['streetAddress'],
+}).refine(data => {
+  // If shop address is provided, it must have house number and letters
+  if (data.shopAddress && data.shopAddress.trim().length > 0) {
+    const hasNumber = /\d/.test(data.shopAddress);
+    const hasLetter = /[a-zA-Z]/.test(data.shopAddress);
+    return hasNumber && hasLetter;
+  }
+  return true;
+}, {
+  message: 'Shop address must include both house/building number and street name (e.g., "123 Main Street")',
+  path: ['shopAddress'],
 });
 
 export function ProfileForm() {
@@ -65,6 +83,9 @@ export function ProfileForm() {
   const [barangayInput, setBarangayInput] = useState('');
   const [barangaySuggestions, setBarangaySuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [shopBarangayInput, setShopBarangayInput] = useState('');
+  const [shopBarangaySuggestions, setShopBarangaySuggestions] = useState([]);
+  const [showShopSuggestions, setShowShopSuggestions] = useState(false);
   const [codesRemaining, setCodesRemaining] = useState(0);
   const [showCodesModal, setShowCodesModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -86,6 +107,12 @@ export function ProfileForm() {
       country: 'Philippines',
       gcashName: '',
       gcashNumber: '',
+      shopName: '',
+      shopAddress: '',
+      shopBarangay: '',
+      shopCity: 'Dagupan',
+      allowShipping: true,
+      allowPickup: false,
     }
   });
 
@@ -110,8 +137,15 @@ export function ProfileForm() {
             country: profile.country || 'Philippines',
             gcashName: profile.gcashName || '',
             gcashNumber: profile.gcashNumber || '',
+            shopName: profile.shopName || '',
+            shopAddress: profile.shopAddress || '',
+            shopBarangay: profile.shopBarangay || '',
+            shopCity: profile.shopCity || 'Dagupan',
+            allowShipping: profile.allowShipping !== false,
+            allowPickup: profile.allowPickup === true,
           });
           setBarangayInput(profile.barangay || '');
+          setShopBarangayInput(profile.shopBarangay || '');
           // Set recovery codes remaining count
           setCodesRemaining(profile.codesRemaining || 0);
         }
@@ -149,6 +183,32 @@ export function ProfileForm() {
     setBarangayInput(barangay);
     form.setValue('barangay', barangay);
     setShowSuggestions(false);
+  };
+
+  // Handle shop barangay input and filter suggestions
+  const handleShopBarangayChange = (value) => {
+    setShopBarangayInput(value);
+    form.setValue('shopBarangay', value);
+
+    if (value.trim().length === 0) {
+      setShopBarangaySuggestions([]);
+      setShowShopSuggestions(false);
+      return;
+    }
+
+    const filtered = SORTED_BARANGAYS.filter(barangay =>
+      barangay.toLowerCase().includes(value.toLowerCase())
+    );
+
+    setShopBarangaySuggestions(filtered.slice(0, 8));
+    setShowShopSuggestions(true);
+  };
+
+  // Handle selecting a shop barangay from suggestions
+  const selectShopBarangay = (barangay) => {
+    setShopBarangayInput(barangay);
+    form.setValue('shopBarangay', barangay);
+    setShowShopSuggestions(false);
   };
 
   // Handle viewing recovery codes with password verification
@@ -234,6 +294,13 @@ export function ProfileForm() {
       if (values.country) updateData.country = values.country;
       if (values.gcashName) updateData.gcashName = values.gcashName;
       if (values.gcashNumber) updateData.gcashNumber = values.gcashNumber;
+      // Add shop fields
+      if (values.shopName) updateData.shopName = values.shopName;
+      if (values.shopAddress) updateData.shopAddress = values.shopAddress;
+      if (values.shopBarangay) updateData.shopBarangay = values.shopBarangay;
+      if (values.shopCity) updateData.shopCity = values.shopCity;
+      updateData.allowShipping = values.allowShipping;
+      updateData.allowPickup = values.allowPickup;
 
       console.log('📤 Sending update data to backend:', updateData);
 
@@ -261,8 +328,15 @@ export function ProfileForm() {
           country: responseData.country || 'Philippines',
           gcashName: responseData.gcashName || '',
           gcashNumber: responseData.gcashNumber || '',
+          shopName: responseData.shopName || '',
+          shopAddress: responseData.shopAddress || '',
+          shopBarangay: responseData.shopBarangay || '',
+          shopCity: responseData.shopCity || 'Dagupan',
+          allowShipping: responseData.allowShipping !== false,
+          allowPickup: responseData.allowPickup === true,
         });
         setBarangayInput(responseData.barangay || '');
+        setShopBarangayInput(responseData.shopBarangay || '');
         console.log('✅ Form reset completed');
       } else {
         console.warn('⚠️ No data in response from update');
@@ -510,6 +584,134 @@ export function ProfileForm() {
                     </FormItem>
                   )}
                 />
+              </div>
+            </div>
+
+            {/* Shop Profile Section */}
+            <div className="space-y-4 pb-6 border-b">
+              <h3 className="text-sm font-semibold text-muted-foreground">Shop Profile (For Sellers)</h3>
+
+              <FormField
+                control={form.control}
+                name="shopName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Shop Name (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., My Crafty Shop" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Your shop's display name</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="shopAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Shop Address (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 123 Main Street" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Must include house/building number and street name</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="shopBarangay"
+                render={({ field }) => (
+                  <FormItem className="relative">
+                    <FormLabel>Shop Barangay (Optional)</FormLabel>
+                    <FormControl>
+                      <div>
+                        <Input
+                          placeholder="e.g., Pantal"
+                          value={shopBarangayInput}
+                          onChange={(e) => handleShopBarangayChange(e.target.value)}
+                          onFocus={() => shopBarangayInput.trim().length > 0 && setShowShopSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowShopSuggestions(false), 150)}
+                        />
+                        {showShopSuggestions && shopBarangaySuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 border border-gray-300 bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {shopBarangaySuggestions.map((barangay, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => selectShopBarangay(barangay)}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
+                              >
+                                {barangay}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="shopCity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Shop City</FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Delivery Methods</h4>
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="allowShipping"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                          />
+                        </FormControl>
+                        <FormLabel className="cursor-pointer font-normal">Allow Shipping</FormLabel>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="allowPickup"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                          />
+                        </FormControl>
+                        <FormLabel className="cursor-pointer font-normal">Allow Local Pickup</FormLabel>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Choose which delivery methods you want to offer customers</p>
               </div>
             </div>
 

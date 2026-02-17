@@ -6,7 +6,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/button';
 import { useUser } from '../firebase/auth/use-user';
-import { ChevronLeft, Star } from 'lucide-react';
+import { ChevronLeft, Star, MapPin, Truck, MapPinOff } from 'lucide-react';
 
 export default function SellerProfilePage() {
   const params = useParams();
@@ -154,6 +154,78 @@ export default function SellerProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Shop Details Section */}
+      {seller.shopName && (
+        <div className="mb-12 pb-8 border-b">
+          <h2 className="text-2xl font-bold font-headline mb-6">Shop Details</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Shop Info Card */}
+            <div className="border border-input rounded-lg p-6 bg-card">
+              <h3 className="text-lg font-semibold mb-4">{seller.shopName}</h3>
+
+              {seller.shopAddress && (
+                <div className="flex gap-3 mb-3">
+                  <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-foreground">
+                      {seller.shopAddress}
+                      {seller.shopBarangay && `, ${seller.shopBarangay}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {seller.shopCity || 'Dagupan'}, Philippines
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Methods */}
+              <div className="mt-6 pt-4 border-t">
+                <p className="text-sm font-semibold mb-3">Delivery Methods</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {seller.allowShipping ? (
+                      <>
+                        <Truck className="h-4 w-4 text-green-600" />
+                        <span className="text-sm text-green-600">Shipping Available</span>
+                      </>
+                    ) : (
+                      <>
+                        <Truck className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-400">Shipping Not Available</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {seller.allowPickup ? (
+                      <>
+                        <MapPinOff className="h-4 w-4 text-green-600" />
+                        <span className="text-sm text-green-600">Local Pickup Available</span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPinOff className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-400">Local Pickup Not Available</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Map Placeholder (Ready for Google Maps integration) */}
+            <div className="border border-input rounded-lg p-6 bg-card flex items-center justify-center min-h-[280px]">
+              <div className="text-center">
+                <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Map view coming soon
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Products Section */}
       <div>

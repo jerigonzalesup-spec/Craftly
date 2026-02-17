@@ -2,12 +2,15 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Zap, Heart } from 'lucide-react';
+import { ShoppingCart, Zap, Heart, Truck, MapPin } from 'lucide-react';
 import { useCart } from '@/hooks/use-cart';
 import { useToast } from '@/hooks/use-toast';
 import { getImageUrl } from '@/lib/image-utils';
 import { useFavorites } from '@/hooks/use-favorites';
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
+import { useFirestore } from '@/firebase/provider';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function ProductCard({ product, user }) {
   const imageUrl = getImageUrl(product.images[0]);
@@ -15,8 +18,33 @@ export function ProductCard({ product, user }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isFavorited, toggleFavorite } = useFavorites();
+  const firestore = useFirestore();
+  const [sellerDelivery, setSellerDelivery] = useState(null);
 
   const isFavorite = isFavorited(product.id);
+
+  // Fetch seller delivery methods
+  useEffect(() => {
+    if (!firestore || !product.createdBy) return;
+
+    const fetchSellerDelivery = async () => {
+      try {
+        const sellerRef = doc(firestore, 'users', product.createdBy);
+        const sellerSnap = await getDoc(sellerRef);
+        if (sellerSnap.exists()) {
+          const data = sellerSnap.data();
+          setSellerDelivery({
+            allowShipping: data.allowShipping !== false,
+            allowPickup: data.allowPickup === true,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching seller delivery methods:', error);
+      }
+    };
+
+    fetchSellerDelivery();
+  }, [firestore, product.createdBy]);
   
   const handleFavoriteClick = (e) => {
     e.preventDefault();
@@ -105,6 +133,24 @@ export function ProductCard({ product, user }) {
               <div>
                   <h3 className="font-semibold text-base leading-tight mt-1 truncate">{product.name}</h3>
                   <p className="text-sm text-muted-foreground">{product.category.replace('-', ' ')}</p>
+
+                  {/* Delivery Method Badges */}
+                  {sellerDelivery && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {sellerDelivery.allowShipping && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 rounded text-xs text-blue-700">
+                          <Truck className="h-3 w-3" />
+                          <span>Ships</span>
+                        </div>
+                      )}
+                      {sellerDelivery.allowPickup && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 rounded text-xs text-green-700">
+                          <MapPin className="h-3 w-3" />
+                          <span>Pickup</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
               <p className="text-lg font-bold text-foreground mt-2">₱{product.price.toFixed(2)}</p>
           </CardContent>

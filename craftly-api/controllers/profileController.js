@@ -52,6 +52,13 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         // GCash details
         gcashName: userData.gcashName || null,
         gcashNumber: userData.gcashNumber || null,
+        // Shop profile
+        shopName: userData.shopName || null,
+        shopAddress: userData.shopAddress || null,
+        shopBarangay: userData.shopBarangay || null,
+        shopCity: userData.shopCity || 'Dagupan',
+        allowShipping: userData.allowShipping !== false,
+        allowPickup: userData.allowPickup === true,
         // Recovery codes info
         codesRemaining,
       },
@@ -74,7 +81,7 @@ export const getUserProfile = asyncHandler(async (req, res) => {
 export const updateUserProfile = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const headerUserId = req.headers['x-user-id'];
-  const { fullName, contactNumber, streetAddress, barangay, city, postalCode, country, gcashName, gcashNumber } = req.body;
+  const { fullName, contactNumber, streetAddress, barangay, city, postalCode, country, gcashName, gcashNumber, shopName, shopAddress, shopBarangay, shopCity, allowShipping, allowPickup } = req.body;
 
   if (!userId) {
     throw new ApiError('User ID is required', 400);
@@ -96,6 +103,12 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     country,
     gcashName,
     gcashNumber,
+    shopName,
+    shopAddress,
+    shopBarangay,
+    shopCity,
+    allowShipping,
+    allowPickup,
   });
 
   // Validate input
@@ -134,6 +147,13 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     if (country) updateData.country = country;
     if (gcashName) updateData.gcashName = gcashName;
     if (gcashNumber) updateData.gcashNumber = gcashNumber;
+    // Shop profile fields
+    if (shopName) updateData.shopName = shopName;
+    if (shopAddress) updateData.shopAddress = shopAddress;
+    if (shopBarangay) updateData.shopBarangay = shopBarangay;
+    if (shopCity) updateData.shopCity = shopCity;
+    updateData.allowShipping = allowShipping !== false;
+    updateData.allowPickup = allowPickup === true;
 
     updateData.updatedAt = new Date().toISOString();
 
@@ -175,6 +195,13 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
         // GCash details
         gcashName: userData.gcashName || null,
         gcashNumber: userData.gcashNumber || null,
+        // Shop profile
+        shopName: userData.shopName || null,
+        shopAddress: userData.shopAddress || null,
+        shopBarangay: userData.shopBarangay || null,
+        shopCity: userData.shopCity || 'Dagupan',
+        allowShipping: userData.allowShipping !== false,
+        allowPickup: userData.allowPickup === true,
         // Recovery codes info
         codesRemaining,
       },
