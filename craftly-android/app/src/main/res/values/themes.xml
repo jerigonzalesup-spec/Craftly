@@ -36,4 +36,15 @@
     </style>
 
     <style name="Theme.Android" parent="Base.Theme.Android" />
+
+    <!-- Splash Screen Theme - Remove action bar and set full screen -->
+    <style name="Theme.Android.SplashScreen" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorBackground">@color/md_theme_light_background</item>
+        <item name="android:statusBarColor">@color/md_theme_light_background</item>
+    </style>
 </resources>

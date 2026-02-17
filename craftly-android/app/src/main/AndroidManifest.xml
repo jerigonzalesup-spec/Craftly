@@ -19,15 +19,21 @@
         android:theme="@style/Theme.Android"
         android:usesCleartextTraffic="true">
 
-        <!-- Authentication Activities -->
+        <!-- Splash Screen Activity (Launcher) -->
         <activity
-            android:name=".presentation.auth.LoginActivity"
-            android:exported="true">
+            android:name=".presentation.auth.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Android.SplashScreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Authentication Activities -->
+        <activity
+            android:name=".presentation.auth.LoginActivity"
+            android:exported="true" />
 
         <activity
             android:name=".presentation.auth.RegisterActivity"
@@ -36,6 +42,16 @@
         <!-- Main Application Activity -->
         <activity
             android:name=".presentation.ui.MainActivity"
+            android:exported="false" />
+
+        <!-- Product Detail Screen -->
+        <activity
+            android:name=".presentation.ui.activities.ProductDetailActivity"
+            android:exported="false" />
+
+        <!-- Seller Profile Screen -->
+        <activity
+            android:name=".presentation.ui.activities.SellerProfileActivity"
             android:exported="false" />
 
     </application>
