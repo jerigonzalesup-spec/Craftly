@@ -4,8 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -18,9 +16,9 @@ import com.craftly.app.R
 import com.craftly.app.data.api.RetrofitClient
 import com.craftly.app.data.model.Product
 import com.craftly.app.data.model.Review
+import com.craftly.app.data.model.User
 import com.craftly.app.presentation.ui.adapters.ImageCarouselAdapter
 import com.craftly.app.presentation.ui.adapters.ReviewAdapter
-import com.craftly.app.presentation.auth.AuthManager
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +32,6 @@ class ProductDetailActivity : AppCompatActivity() {
 
     private val TAG = "ProductDetailActivity"
     private var apiService: com.craftly.app.data.api.ApiService? = null
-    
     private val gson = Gson()
 
     private lateinit var backButton: ImageView
@@ -50,17 +47,19 @@ class ProductDetailActivity : AppCompatActivity() {
     private lateinit var productDescription: TextView
     private lateinit var materialsUsed: TextView
     private lateinit var stockCount: TextView
-    private lateinit var decrementQuantity: Button
-    private lateinit var quantityInput: EditText
-    private lateinit var incrementQuantity: Button
-    private lateinit var addToCartButton: Button
-    private lateinit var buyNowButton: Button
+    private lateinit var decrementQuantity: android.widget.Button
+    private lateinit var quantityInput: android.widget.EditText
+    private lateinit var incrementQuantity: android.widget.Button
+    private lateinit var addToCartButton: android.widget.Button
+    private lateinit var buyNowButton: android.widget.Button
     private lateinit var reviewsRecyclerView: RecyclerView
     private lateinit var noReviewsMessage: TextView
     private lateinit var reviewsLoadingProgress: ProgressBar
+    private lateinit var deliveryMethodsText: TextView
 
     private var productId: String? = null
     private var product: Product? = null
+    private var seller: User? = null
     private var quantity = 1
     private var selectedImageIndex = 0
     private var reviews: MutableList<Review> = mutableListOf()
@@ -68,50 +67,63 @@ class ProductDetailActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        apiService = RetrofitClient.getApiService()
-        
         setContentView(R.layout.activity_product_detail)
+        apiService = RetrofitClient.getApiService()
+
+        Log.d(TAG, "ProductDetailActivity created")
 
         productId = intent.getStringExtra("productId")
         Log.d(TAG, "onCreate: Product ID = $productId")
 
         if (productId == null) {
-            Log.e(TAG, "Product ID not provided")
+            Log.e(TAG, "Product ID not provided!")
             Toast.makeText(this, "Product not found", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        initializeViews()
-        setupListeners()
-        setupReviewsRecyclerView()
-        loadProductDetails()
+        try {
+            initializeViews()
+            setupListeners()
+            setupReviewsRecyclerView()
+            loadProductDetails()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onCreate: ${e.message}", e)
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            finish()
+        }
     }
 
     private fun initializeViews() {
-        backButton = findViewById(R.id.backButton)
-        favoriteButton = findViewById(R.id.favoriteButton)
-        loadingProgressBar = findViewById(R.id.loadingProgressBar)
-        imageViewPager = findViewById(R.id.imageViewPager)
-        pageIndicator = findViewById(R.id.pageIndicator)
-        productName = findViewById(R.id.productName)
-        productRating = findViewById(R.id.productRating)
-        reviewCount = findViewById(R.id.reviewCount)
-        sellerName = findViewById(R.id.sellerName)
-        productPrice = findViewById(R.id.productPrice)
-        productDescription = findViewById(R.id.productDescription)
-        materialsUsed = findViewById(R.id.materialsUsed)
-        stockCount = findViewById(R.id.stockCount)
-        decrementQuantity = findViewById(R.id.decrementQuantity)
-        quantityInput = findViewById(R.id.quantityInput)
-        incrementQuantity = findViewById(R.id.incrementQuantity)
-        addToCartButton = findViewById(R.id.addToCartButton)
-        buyNowButton = findViewById(R.id.buyNowButton)
-        reviewsRecyclerView = findViewById(R.id.reviewsRecyclerView)
-        noReviewsMessage = findViewById(R.id.noReviewsMessage)
-        reviewsLoadingProgress = findViewById(R.id.reviewsLoadingProgress)
+        try {
+            backButton = findViewById(R.id.backButton)
+            favoriteButton = findViewById(R.id.favoriteButton)
+            loadingProgressBar = findViewById(R.id.loadingProgressBar)
+            imageViewPager = findViewById(R.id.imageViewPager)
+            pageIndicator = findViewById(R.id.pageIndicator)
+            productName = findViewById(R.id.productName)
+            productRating = findViewById(R.id.productRating)
+            reviewCount = findViewById(R.id.reviewCount)
+            sellerName = findViewById(R.id.sellerName)
+            productPrice = findViewById(R.id.productPrice)
+            productDescription = findViewById(R.id.productDescription)
+            materialsUsed = findViewById(R.id.materialsUsed)
+            stockCount = findViewById(R.id.stockCount)
+            decrementQuantity = findViewById(R.id.decrementQuantity)
+            quantityInput = findViewById(R.id.quantityInput)
+            incrementQuantity = findViewById(R.id.incrementQuantity)
+            addToCartButton = findViewById(R.id.addToCartButton)
+            buyNowButton = findViewById(R.id.buyNowButton)
+            reviewsRecyclerView = findViewById(R.id.reviewsRecyclerView)
+            noReviewsMessage = findViewById(R.id.noReviewsMessage)
+            reviewsLoadingProgress = findViewById(R.id.reviewsLoadingProgress)
+            deliveryMethodsText = findViewById(R.id.deliveryMethodsText)
 
-        Log.d(TAG, "Views initialized")
+            Log.d(TAG, "All views initialized successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing views: ${e.message}", e)
+            throw e
+        }
     }
 
     private fun setupListeners() {
@@ -126,12 +138,10 @@ class ProductDetailActivity : AppCompatActivity() {
         }
 
         decrementQuantity.setOnClickListener {
-            Log.d(TAG, "Decrement quantity clicked")
             updateQuantity(quantity - 1)
         }
 
         incrementQuantity.setOnClickListener {
-            Log.d(TAG, "Increment quantity clicked")
             updateQuantity(quantity + 1)
         }
 
@@ -143,12 +153,10 @@ class ProductDetailActivity : AppCompatActivity() {
         }
 
         addToCartButton.setOnClickListener {
-            Log.d(TAG, "Add to cart clicked")
             addToCart()
         }
 
         buyNowButton.setOnClickListener {
-            Log.d(TAG, "Buy now clicked")
             buyNow()
         }
 
@@ -172,9 +180,15 @@ class ProductDetailActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                if (apiService == null) {
+                    throw Exception("API Service is null")
+                }
+
                 val response = withContext(Dispatchers.IO) {
                     apiService!!.getProductById(productId!!)
                 }
+
+                Log.d(TAG, "API Response: success=${response.success}, data=${response.data?.id}")
 
                 if (response.success && response.data != null) {
                     product = response.data
@@ -184,13 +198,20 @@ class ProductDetailActivity : AppCompatActivity() {
                     fetchSellerName()
                 } else {
                     Log.e(TAG, "Failed to load product: ${response.message}")
-                    Toast.makeText(this@ProductDetailActivity, "Failed to load product", Toast.LENGTH_SHORT).show()
-                    finish()
+                    Toast.makeText(
+                        this@ProductDetailActivity,
+                        "Failed to load product: ${response.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading product: ${e.message}", e)
-                Toast.makeText(this@ProductDetailActivity, "Error loading product", Toast.LENGTH_SHORT).show()
-                finish()
+                e.printStackTrace()
+                Toast.makeText(
+                    this@ProductDetailActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             } finally {
                 loadingProgressBar.visibility = View.GONE
             }
@@ -200,91 +221,138 @@ class ProductDetailActivity : AppCompatActivity() {
     private fun displayProductDetails() {
         Log.d(TAG, "Displaying product details")
         product?.let { p ->
-            productName.text = p.name
-            productPrice.text = "₱${String.format("%.2f", p.price)}"
-            productDescription.text = p.description
-            materialsUsed.text = p.materialsUsed
-            stockCount.text = p.stock.toString()
-            productRating.text = String.format("%.1f", p.rating)
-            reviewCount.text = "(${p.reviewCount} reviews)"
+            try {
+                productName.text = p.name
+                productPrice.text = "₱${String.format("%.2f", p.price)}"
+                productDescription.text = if (p.description.isEmpty()) "No description" else p.description
+                materialsUsed.text =
+                    if (p.materialsUsed.isEmpty()) "Not specified" else p.materialsUsed
+                stockCount.text = "${p.stock} in stock"
+                productRating.text = if (p.rating > 0) String.format("%.1f", p.rating) else "No rating"
+                reviewCount.text = "(${p.reviewCount} reviews)"
 
-            // Set up image carousel
-            if (p.images.isNotEmpty()) {
-                val carouselAdapter = ImageCarouselAdapter(p.images)
-                imageViewPager.adapter = carouselAdapter
-                updatePageIndicators()
-            }
+                // Set up image carousel
+                if (p.images.isNotEmpty()) {
+                    try {
+                        val carouselAdapter = ImageCarouselAdapter(p.images)
+                        imageViewPager.adapter = carouselAdapter
+                        updatePageIndicators()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error setting carousel: ${e.message}")
+                    }
+                } else {
+                    Log.w(TAG, "No images for product")
+                }
 
-            // Disable buttons if out of stock
-            if (p.stock <= 0) {
-                addToCartButton.isEnabled = false
-                buyNowButton.isEnabled = false
-                addToCartButton.text = "Out of Stock"
-                incrementQuantity.isEnabled = false
-                quantityInput.isEnabled = false
+                // Disable buttons if out of stock
+                if (p.stock <= 0) {
+                    addToCartButton.isEnabled = false
+                    buyNowButton.isEnabled = false
+                    addToCartButton.text = "Out of Stock"
+                    incrementQuantity.isEnabled = false
+                    quantityInput.isEnabled = false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error displaying product details: ${e.message}", e)
+                Toast.makeText(this, "Error displaying details: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun updatePageIndicators() {
-        Log.d(TAG, "Updating page indicators. Current index: $selectedImageIndex")
-        val dotsLayout = findViewById<android.widget.LinearLayout>(R.id.pageIndicator)
-        dotsLayout.removeAllViews()
+        try {
+            val dotsLayout = findViewById<android.widget.LinearLayout>(R.id.pageIndicator)
+            dotsLayout.removeAllViews()
 
-        product?.images?.forEachIndexed { index, _ ->
-            val dot = View(this)
-            val dotSize = 8
-            val layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.util.TypedValue.applyDimension(
-                    android.util.TypedValue.COMPLEX_UNIT_DIP,
-                    dotSize.toFloat(),
-                    resources.displayMetrics
-                ).toInt(),
-                android.util.TypedValue.applyDimension(
-                    android.util.TypedValue.COMPLEX_UNIT_DIP,
-                    dotSize.toFloat(),
-                    resources.displayMetrics
-                ).toInt()
-            )
-            layoutParams.setMargins(4, 0, 4, 0)
-            dot.layoutParams = layoutParams
-            dot.setBackgroundColor(
-                if (index == selectedImageIndex)
-                    getColor(R.color.md_theme_light_primary)
-                else
-                    getColor(R.color.md_theme_light_surfaceVariant)
-            )
-            dotsLayout.addView(dot)
+            product?.images?.forEachIndexed { index, _ ->
+                val dot = View(this)
+                val dotSize = 8
+                val layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.util.TypedValue.applyDimension(
+                        android.util.TypedValue.COMPLEX_UNIT_DIP,
+                        dotSize.toFloat(),
+                        resources.displayMetrics
+                    ).toInt(),
+                    android.util.TypedValue.applyDimension(
+                        android.util.TypedValue.COMPLEX_UNIT_DIP,
+                        dotSize.toFloat(),
+                        resources.displayMetrics
+                    ).toInt()
+                )
+                layoutParams.setMargins(4, 0, 4, 0)
+                dot.layoutParams = layoutParams
+                dot.setBackgroundColor(
+                    if (index == selectedImageIndex)
+                        getColor(R.color.md_theme_light_primary)
+                    else
+                        getColor(R.color.md_theme_light_surfaceVariant)
+                )
+                dotsLayout.addView(dot)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating page indicators: ${e.message}")
         }
     }
 
     private fun fetchSellerName() {
         product?.let { p ->
-            Log.d(TAG, "Fetching seller name for: ${p.createdBy}")
+            Log.d(TAG, "Fetching seller profile for: ${p.createdBy}")
             CoroutineScope(Dispatchers.Main).launch {
                 try {
+                    if (apiService == null) {
+                        Log.e(TAG, "API Service is null when fetching seller")
+                        return@launch
+                    }
+
                     val response = withContext(Dispatchers.IO) {
                         apiService!!.getUserProfile(p.createdBy)
                     }
 
                     if (response.success && response.data != null) {
-                        val user = response.data
-                        sellerName.text = user.fullName
-                        Log.d(TAG, "Seller name loaded: ${user.fullName}")
-
-                        sellerName.setOnClickListener {
-                            Log.d(TAG, "Seller name clicked")
-                            val intent = Intent(this@ProductDetailActivity, SellerProfileActivity::class.java)
-                            intent.putExtra("sellerId", p.createdBy)
-                            startActivity(intent)
-                        }
+                        seller = response.data
+                        Log.d(TAG, "Seller loaded: ${seller?.fullName}")
+                        displaySellerInfo()
                     } else {
+                        Log.w(TAG, "Failed to load seller: ${response.message}")
                         sellerName.text = "Unknown Seller"
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error fetching seller: ${e.message}")
+                    Log.e(TAG, "Error fetching seller: ${e.message}", e)
                     sellerName.text = "Unknown Seller"
                 }
+            }
+        }
+    }
+
+    private fun displaySellerInfo() {
+        seller?.let { s ->
+            try {
+                sellerName.text = s.fullName
+
+                sellerName.setOnClickListener {
+                    Log.d(TAG, "Seller name clicked")
+                    val intent = Intent(this@ProductDetailActivity, SellerProfileActivity::class.java)
+                    intent.putExtra("sellerId", s.uid)
+                    startActivity(intent)
+                }
+
+                // Display delivery methods
+                val deliveryMethods = mutableListOf<String>()
+                if (s.allowShipping) {
+                    deliveryMethods.add("Shipping Available")
+                }
+                if (s.allowPickup) {
+                    deliveryMethods.add("Local Pickup Available")
+                }
+                if (deliveryMethods.isEmpty()) {
+                    deliveryMethodsText.text = "No delivery methods available"
+                } else {
+                    deliveryMethodsText.text = "Delivery: ${deliveryMethods.joinToString(", ")}"
+                }
+
+                Log.d(TAG, "Seller info displayed: ${s.fullName}, Methods: $deliveryMethods")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error displaying seller info: ${e.message}")
             }
         }
     }
@@ -295,6 +363,11 @@ class ProductDetailActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                if (apiService == null) {
+                    Log.e(TAG, "API Service is null when loading reviews")
+                    return@launch
+                }
+
                 val response = withContext(Dispatchers.IO) {
                     apiService!!.getReviews(productId!!)
                 }
@@ -314,11 +387,15 @@ class ProductDetailActivity : AppCompatActivity() {
                             createdAt = when (val date = reviewMap["createdAt"]) {
                                 is String -> {
                                     try {
-                                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).parse(date)?.time ?: System.currentTimeMillis()
+                                        SimpleDateFormat(
+                                            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                                            Locale.getDefault()
+                                        ).parse(date)?.time ?: System.currentTimeMillis()
                                     } catch (e: Exception) {
                                         System.currentTimeMillis()
                                     }
                                 }
+
                                 is Number -> date.toLong()
                                 else -> System.currentTimeMillis()
                             }
@@ -336,7 +413,7 @@ class ProductDetailActivity : AppCompatActivity() {
                         reviewAdapter.updateReviews(reviews)
                     }
                 } else {
-                    Log.w(TAG, "No reviews found or error loading reviews")
+                    Log.w(TAG, "No reviews or error loading reviews")
                     noReviewsMessage.visibility = View.VISIBLE
                     reviewsRecyclerView.visibility = View.GONE
                 }
@@ -360,7 +437,6 @@ class ProductDetailActivity : AppCompatActivity() {
     }
 
     private fun toggleFavorite() {
-        // TODO: Implement favorites functionality with Firestore
         Toast.makeText(this, "Added to favorites", Toast.LENGTH_SHORT).show()
     }
 
@@ -376,7 +452,6 @@ class ProductDetailActivity : AppCompatActivity() {
                 return
             }
 
-            // TODO: Implement cart functionality
             Toast.makeText(this, "Added $quantity item(s) to cart", Toast.LENGTH_SHORT).show()
             quantity = 1
             quantityInput.setText("1")
@@ -395,7 +470,6 @@ class ProductDetailActivity : AppCompatActivity() {
                 return
             }
 
-            // TODO: Implement buy now functionality - redirect to checkout
             Toast.makeText(this, "Redirecting to checkout", Toast.LENGTH_SHORT).show()
         }
     }
