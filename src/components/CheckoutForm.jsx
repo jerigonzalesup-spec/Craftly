@@ -21,7 +21,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebaseApp } from '@/firebase/provider';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin, Truck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OrdersService } from '@/services/orders/ordersService';
@@ -164,9 +164,9 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
     setShowSuggestions(false);
   };
 
-  // Fetch seller's GCash details when payment method is selected
+  // Load seller details on component mount (for shop info display and GCash details)
   useEffect(() => {
-    if (watchedPaymentMethod !== 'gcash' || cartItems.length === 0) {
+    if (cartItems.length === 0) {
       setSellerDetails(null);
       setLoadingSeller(false);
       return;
@@ -194,7 +194,40 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
     };
 
     fetchSellerDetails();
-  }, [watchedPaymentMethod, cartItems]);
+  }, [cartItems]);
+
+  // Fetch seller GCash details when payment method is selected (separate from shop info)
+  useEffect(() => {
+    if (watchedPaymentMethod !== 'gcash' || cartItems.length === 0) {
+      // Don't reset sellerDetails here since we need it for shop info display
+      return;
+    }
+
+    const fetchSellerGCashDetails = async () => {
+      try {
+        // If sellerDetails already has gcash info, we're done
+        if (sellerDetails?.gcashName && sellerDetails?.gcashNumber) {
+          return;
+        }
+
+        // Get unique seller IDs from cart items
+        const sellerIds = [...new Set(cartItems.map(item => item.createdBy))];
+
+        // For now, fetch the first seller's details
+        if (sellerIds.length > 0) {
+          const profile = await UserProfileService.getUserProfile(sellerIds[0]);
+          // Update only if we got gcash details
+          if (profile?.gcashName || profile?.gcashNumber) {
+            setSellerDetails(profile);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch seller GCash details:', error);
+      }
+    };
+
+    fetchSellerGCashDetails();
+  }, [watchedPaymentMethod, cartItems, sellerDetails]);
 
 
   const uploadReceipt = async (file, orderId) => {
@@ -323,20 +356,44 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
                   <FormLabel className="text-base font-semibold">Shipping Method</FormLabel>
                   <FormControl>
                     <div className="flex flex-col sm:flex-row gap-4">
-                      {['local-delivery', 'store-pickup'].map((method) => (
-                        <FormItem key={method} className="flex-1">
+                      {(sellerDetails?.allowShipping || !sellerDetails) && (
+                        <FormItem className="flex-1">
                           <FormControl>
                             <button
                               type="button"
-                              onClick={() => field.onChange(method)}
-                              className={`w-full text-left p-4 border rounded-md transition-colors ${field.value === method ? 'border-primary ring-2 ring-primary' : 'hover:bg-accent'}`}
+                              onClick={() => field.onChange('local-delivery')}
+                              disabled={sellerDetails && !sellerDetails.allowShipping}
+                              className={`w-full text-left p-4 border rounded-md transition-colors ${
+                                field.value === 'local-delivery'
+                                  ? 'border-primary ring-2 ring-primary'
+                                  : 'hover:bg-accent'
+                              } ${sellerDetails && !sellerDetails.allowShipping ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              <p className="font-bold capitalize">{method.replace('-', ' ')}</p>
-                              <p className="text-sm text-muted-foreground">{method === 'local-delivery' ? 'Delivered to your address in Dagupan.' : 'Pick up your order at our physical store.'}</p>
+                              <p className="font-bold capitalize">Local Delivery</p>
+                              <p className="text-sm text-muted-foreground">Delivered to your address in Dagupan.</p>
                             </button>
                           </FormControl>
                         </FormItem>
-                      ))}
+                      )}
+                      {(sellerDetails?.allowPickup || !sellerDetails) && (
+                        <FormItem className="flex-1">
+                          <FormControl>
+                            <button
+                              type="button"
+                              onClick={() => field.onChange('store-pickup')}
+                              disabled={sellerDetails && !sellerDetails.allowPickup}
+                              className={`w-full text-left p-4 border rounded-md transition-colors ${
+                                field.value === 'store-pickup'
+                                  ? 'border-primary ring-2 ring-primary'
+                                  : 'hover:bg-accent'
+                              } ${sellerDetails && !sellerDetails.allowPickup ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <p className="font-bold capitalize">Store Pickup</p>
+                              <p className="text-sm text-muted-foreground">Pick up your order at our physical store.</p>
+                            </button>
+                          </FormControl>
+                        </FormItem>
+                      )}
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -399,6 +456,47 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
                       <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                   </div>
                   <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="09123456789" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+              </div>
+            )}
+
+            {/* Seller Shop Address Display */}
+            {cartItems.length > 0 && (
+              <div className="space-y-2 p-4 border rounded-md bg-blue-50">
+                <h3 className="font-semibold text-sm">Shop Information</h3>
+                <div className="space-y-1 text-sm">
+                  <p className="text-muted-foreground">You're ordering from:</p>
+                  {loadingSeller ? (
+                    <>
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-48" />
+                    </>
+                  ) : sellerDetails?.shopName ? (
+                    <>
+                      <p className="font-medium">{sellerDetails.shopName}</p>
+                      {sellerDetails.shopAddress && (
+                        <p className="text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {sellerDetails.shopAddress}
+                          {sellerDetails.shopBarangay && `, ${sellerDetails.shopBarangay}`}
+                        </p>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        {sellerDetails.allowShipping && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                            <Truck className="h-3 w-3" /> Shipping Available
+                          </span>
+                        )}
+                        {sellerDetails.allowPickup && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                            <MapPin className="h-3 w-3" /> Pickup Available
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">Shop information not available</p>
+                  )}
+                </div>
               </div>
             )}
 

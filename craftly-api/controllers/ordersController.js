@@ -73,6 +73,43 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw new ApiError(`Shipping method must be one of: ${validShippingMethods.join(', ')}`, 400);
   }
 
+  // Validate that sellers allow the selected shipping method
+  if (items && items.length > 0) {
+    for (const item of items) {
+      if (item.sellerId) {
+        try {
+          const sellerRef = db.collection('users').doc(item.sellerId);
+          const sellerDoc = await sellerRef.get();
+
+          if (sellerDoc.exists) {
+            const sellerData = sellerDoc.data();
+
+            // Check if seller allows this shipping method
+            if (shippingMethod === 'local-delivery' && !sellerData.allowShipping) {
+              throw new ApiError(
+                `The seller of "${item.productName}" does not allow local delivery. Please select store pickup or choose items from a seller who offers delivery.`,
+                400
+              );
+            }
+
+            if (shippingMethod === 'store-pickup' && !sellerData.allowPickup) {
+              throw new ApiError(
+                `The seller of "${item.productName}" does not allow store pickup. Please select local delivery or choose items from a seller who offers pickup.`,
+                400
+              );
+            }
+          }
+        } catch (error) {
+          if (error instanceof ApiError) {
+            throw error;
+          }
+          console.error(`Error validating seller ${item.sellerId}:`, error);
+          throw new ApiError(`Failed to validate seller delivery methods`, 400);
+        }
+      }
+    }
+  }
+
   // Validate shipping address
   if (!shippingAddress || typeof shippingAddress !== 'object') {
     throw new ApiError('Shipping address is required', 400);

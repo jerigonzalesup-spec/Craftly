@@ -7,13 +7,14 @@ import { useParams, Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Download } from 'lucide-react';
+import { ChevronLeft, Download, MapPin, Truck } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { UserProfileService } from '@/services/user/userProfileService';
 import {
   Select,
   SelectContent,
@@ -61,6 +62,8 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [shopDetails, setShopDetails] = useState(null);
+  const [loadingShop, setLoadingShop] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -98,6 +101,33 @@ export default function OrderDetailsPage() {
 
     return () => unsubscribe();
   }, [orderId, firestore, user, userLoading]);
+
+  // Fetch seller shop details if order is store-pickup
+  useEffect(() => {
+    if (!order || order.shippingMethod !== 'store-pickup' || !order.items || order.items.length === 0) {
+      setShopDetails(null);
+      return;
+    }
+
+    const fetchShopDetails = async () => {
+      try {
+        setLoadingShop(true);
+        // Get the first seller's shop details
+        const firstSellerId = order.items[0].sellerId;
+        if (firstSellerId) {
+          const sellerProfile = await UserProfileService.getUserProfile(firstSellerId);
+          setShopDetails(sellerProfile);
+        }
+      } catch (error) {
+        console.error('Failed to fetch shop details:', error);
+        setShopDetails(null);
+      } finally {
+        setLoadingShop(false);
+      }
+    };
+
+    fetchShopDetails();
+  }, [order]);
 
   // Helper: Check if order is older than 24 hours
   const isOrderLocked = () => {
@@ -288,13 +318,18 @@ export default function OrderDetailsPage() {
 
         <div className="space-y-8">
            <Card>
-            <CardHeader><CardTitle>Shipping Details</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>
+                {order.shippingMethod === 'store-pickup' ? 'Pickup Contact Information' : 'Shipping Details'}
+              </CardTitle>
+            </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground capitalize">{order.shippingMethod ? order.shippingMethod.replace('-', ' ') : ''}</p>
                 <Separator className="my-4" />
                 <p className="font-medium text-foreground">{order.shippingAddress.fullName}</p>
                 <p>{order.shippingAddress.email}</p>
                 {order.shippingAddress.contactNumber && <p>{order.shippingAddress.contactNumber}</p>}
+
                 {order.shippingMethod === 'local-delivery' && order.shippingAddress.streetAddress && (
                     <address className="not-italic mt-2">
                         {order.shippingAddress.streetAddress}<br/>
@@ -302,8 +337,59 @@ export default function OrderDetailsPage() {
                         {order.shippingAddress.postalCode}, {order.shippingAddress.country}
                     </address>
                 )}
+
+                {order.shippingMethod === 'store-pickup' && (
+                    <p className="text-xs text-muted-foreground mt-3 italic">
+                      We'll use this contact information to verify your pickup order.
+                    </p>
+                )}
             </CardContent>
           </Card>
+
+          {order.shippingMethod === 'store-pickup' && (
+            <Card>
+              <CardHeader><CardTitle>Store Pickup Location</CardTitle></CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {loadingShop ? (
+                  <>
+                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-4 w-48 mb-2" />
+                    <Skeleton className="h-4 w-40" />
+                  </>
+                ) : shopDetails ? (
+                  <>
+                    <p className="font-medium text-foreground">{shopDetails.shopName || 'Shop'}</p>
+                    {shopDetails.shopAddress && (
+                      <p className="flex items-start gap-2 mt-2">
+                        <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <span>
+                          {shopDetails.shopAddress}
+                          {shopDetails.shopBarangay && `, Brgy. ${shopDetails.shopBarangay}`}
+                          {shopDetails.shopCity && `, ${shopDetails.shopCity}`}
+                        </span>
+                      </p>
+                    )}
+                    {(shopDetails.allowShipping || shopDetails.allowPickup) && (
+                      <div className="flex gap-2 mt-4">
+                        {shopDetails.allowShipping && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                            <Truck className="h-3 w-3" /> Shipping
+                          </span>
+                        )}
+                        {shopDetails.allowPickup && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                            <MapPin className="h-3 w-3" /> Pickup
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-xs">Shop information not available</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {isSellerInOrder && order.paymentMethod === 'gcash' && (
             <Card>
