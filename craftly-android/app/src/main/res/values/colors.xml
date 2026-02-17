@@ -1,43 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material Design 3 Colors -->
-    <color name="md_theme_light_primary">#6750a4</color>
+    <!-- Craftly Brand Colors (from web design) -->
+    <!-- Primary: Teal/Green HSL(172, 67%, 40%) -->
+    <color name="md_theme_light_primary">#4A8A6F</color>
     <color name="md_theme_light_onPrimary">#ffffff</color>
-    <color name="md_theme_light_primaryContainer">#eaddff</color>
-    <color name="md_theme_light_onPrimaryContainer">#21005d</color>
-    <color name="md_theme_light_secondary">#625b71</color>
+    <color name="md_theme_light_primaryContainer">#D4E8E2</color>
+    <color name="md_theme_light_onPrimaryContainer">#1A2B22</color>
+
+    <!-- Secondary: Cool Gray -->
+    <color name="md_theme_light_secondary">#2D3E52</color>
     <color name="md_theme_light_onSecondary">#ffffff</color>
-    <color name="md_theme_light_secondaryContainer">#e8def8</color>
-    <color name="md_theme_light_onSecondaryContainer">#1d192b</color>
-    <color name="md_theme_light_tertiary">#7d5260</color>
+    <color name="md_theme_light_secondaryContainer">#D9E3EE</color>
+    <color name="md_theme_light_onSecondaryContainer">#0F1B2B</color>
+
+    <!-- Tertiary: Accent Blue -->
+    <color name="md_theme_light_tertiary">#4A6FA5</color>
     <color name="md_theme_light_onTertiary">#ffffff</color>
-    <color name="md_theme_light_tertiaryContainer">#ffd8e4</color>
-    <color name="md_theme_light_onTertiaryContainer">#31111d</color>
-    <color name="md_theme_light_error">#b3261e</color>
+    <color name="md_theme_light_tertiaryContainer">#D9E3F0</color>
+    <color name="md_theme_light_onTertiaryContainer">#0F1E38</color>
+
+    <!-- Error: Red -->
+    <color name="md_theme_light_error">#D32F2F</color>
     <color name="md_theme_light_onError">#ffffff</color>
-    <color name="md_theme_light_errorContainer">#f9dedc</color>
-    <color name="md_theme_light_onErrorContainer">#410e0b</color>
-    <color name="md_theme_light_background">#fffbfe</color>
-    <color name="md_theme_light_onBackground">#1c1b1f</color>
-    <color name="md_theme_light_surface">#fffbfe</color>
-    <color name="md_theme_light_onSurface">#1c1b1f</color>
-    <color name="md_theme_light_surfaceVariant">#e7e0ec</color>
-    <color name="md_theme_light_onSurfaceVariant">#49454e</color>
-    <color name="md_theme_light_outline">#79747e</color>
-    <color name="md_theme_light_inverseOnSurface">#f4eff4</color>
-    <color name="md_theme_light_inverseSurface">#313033</color>
+    <color name="md_theme_light_errorContainer">#FFEBEE</color>
+    <color name="md_theme_light_onErrorContainer">#5E0505</color>
+
+    <!-- Background & Surface: Light Blue HSL(210, 40%, 92%) -->
+    <color name="md_theme_light_background">#E8EFF7</color>
+    <color name="md_theme_light_onBackground">#1C1F3D</color>
+    <color name="md_theme_light_surface">#FFFFFF</color>
+    <color name="md_theme_light_onSurface">#1C1F3D</color>
+    <color name="md_theme_light_surfaceVariant">#D9E3EE</color>
+    <color name="md_theme_light_onSurfaceVariant">#47536A</color>
+    <color name="md_theme_light_outline">#758899</color>
+    <color name="md_theme_light_inverseOnSurface">#F5F7FC</color>
+    <color name="md_theme_light_inverseSurface">#1C1F3D</color>
 
     <!-- Basic Colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="gray_light">#F5F5F5</color>
-    <color name="gray_medium">#E0E0E0</color>
-    <color name="gray_dark">#757575</color>
+    <color name="gray_light">#F5F7FC</color>
+    <color name="gray_medium">#D9E3EE</color>
+    <color name="gray_dark">#758899</color>
 
     <!-- Status Colors -->
     <color name="success">#4CAF50</color>
     <color name="warning">#FF9800</color>
-    <color name="error">#F44336</color>
+    <color name="error">#D32F2F</color>
     <color name="info">#2196F3</color>
-
 </resources>

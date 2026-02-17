@@ -106,4 +106,8 @@
     <string name="please_try_again">Please try again</string>
     <string name="network_error">Network error. Please check your connection.</string>
 
+    <!-- Product Details -->
+    <string name="back">Back</string>
+    <string name="favorite">Favorite</string>
+
 </resources>

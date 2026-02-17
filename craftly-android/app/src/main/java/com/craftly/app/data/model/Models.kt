@@ -36,7 +36,8 @@ data class Product(
     val archiveReason: String? = null,
     val createdAt: Long = 0,
     val rating: Double = 0.0,
-    val reviewCount: Int = 0
+    val reviewCount: Int = 0,
+    val materialsUsed: String = ""
 )
 
 // CartItem Model
@@ -116,4 +117,14 @@ data class AuthResponse(
     val displayName: String = "",
     val role: String = "",
     val recoveryCodes: List<String>? = null
+)
+
+// Review Model
+data class Review(
+    val id: String = "",
+    val userId: String = "",
+    val userName: String = "",
+    val rating: Int = 5,
+    val comment: String = "",
+    val createdAt: Long = 0
 )
