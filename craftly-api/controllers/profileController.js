@@ -1,5 +1,7 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
+import { SORTED_BARANGAYS, isValidBarangay } from '../lib/dagupanBarangays.js';
+import { validateProfileData } from '../lib/validators.js';
 
 const db = getFirestore();
 
@@ -121,8 +123,32 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     throw new ApiError('Invalid GCash number format', 400);
   }
 
-  if (gcashName) {
-    console.log(`✅ GCash name validation passed: ${gcashName}`);
+  // Validate barangay if provided
+  if (barangay && !isValidBarangay(barangay)) {
+    console.log(`❌ Barangay validation failed: ${barangay}`);
+    throw new ApiError('Invalid barangay. Please select a valid Dagupan barangay.', 400);
+  }
+
+  // Validate shop barangay if provided
+  if (shopBarangay && !isValidBarangay(shopBarangay)) {
+    console.log(`❌ Shop barangay validation failed: ${shopBarangay}`);
+    throw new ApiError('Invalid shop barangay. Please select a valid Dagupan barangay.', 400);
+  }
+
+  // Comprehensive validation
+  const validation = validateProfileData({
+    barangay,
+    shopBarangay,
+    contactNumber,
+    gcashNumber,
+    postalCode,
+    streetAddress,
+    shopAddress
+  });
+
+  if (!validation.isValid) {
+    console.log(`❌ Profile validation failed:`, validation.errors);
+    throw new ApiError(validation.errors[0], 400);
   }
   if (gcashNumber) {
     console.log(`✅ GCash number validation passed: ${gcashNumber}`);

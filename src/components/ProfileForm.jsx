@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { updateUserProfile, viewRecoveryCodesWithPassword } from '@/firebase/auth/auth';
 import { UserProfileService } from '@/services/user/userProfileService';
-import { SORTED_BARANGAYS } from '@/lib/dagupanBarangays';
+import { SORTED_BARANGAYS, isValidBarangay } from '@/lib/dagupanBarangays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -38,7 +38,7 @@ const formSchema = z.object({
   email: z.string(),
   contactNumber: z.string().regex(/^(09|\+639)\d{9}$/, 'Please enter a valid PH mobile number (e.g., 09123456789 or +639123456789).').optional().or(z.literal('')),
   streetAddress: z.string().min(5, 'Street address must include house number and street name').optional().or(z.literal('')),
-  barangay: z.string().optional().or(z.literal('')),
+  barangay: z.string().refine(val => !val || isValidBarangay(val), { message: 'Please select a valid Dagupan barangay from the suggestions' }).optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
   postalCode: z.string().optional().or(z.literal('')),
   country: z.string().optional().or(z.literal('')),
@@ -47,7 +47,7 @@ const formSchema = z.object({
   // Shop Profile Fields
   shopName: z.string().min(2, 'Shop name must be at least 2 characters.').optional().or(z.literal('')),
   shopAddress: z.string().min(5, 'Shop address must include house number and street name').optional().or(z.literal('')),
-  shopBarangay: z.string().optional().or(z.literal('')),
+  shopBarangay: z.string().refine(val => !val || isValidBarangay(val), { message: 'Please select a valid Dagupan barangay from the suggestions' }).optional().or(z.literal('')),
   shopCity: z.string().optional().or(z.literal('')),
   allowShipping: z.boolean().optional(),
   allowPickup: z.boolean().optional(),

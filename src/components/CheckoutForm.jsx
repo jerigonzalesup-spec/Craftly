@@ -26,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OrdersService } from '@/services/orders/ordersService';
 import { UserProfileService } from '@/services/user/userProfileService';
-import { SORTED_BARANGAYS } from '@/lib/dagupanBarangays';
+import { SORTED_BARANGAYS, isValidBarangay } from '@/lib/dagupanBarangays';
 
 
 const formSchema = z.object({
@@ -39,7 +39,7 @@ const formSchema = z.object({
       .regex(/^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|aol|protonmail|icloud|mail|zoho)\.com$/, 'Please use a valid email from: gmail.com, yahoo.com, outlook.com, hotmail.com, aol.com, protonmail.com, icloud.com, mail.com, or zoho.com'),
     contactNumber: z.string().regex(/^(09|\+639)\d{9}$/, 'Please enter a valid PH mobile number (e.g., 09123456789 or +639123456789).'),
     streetAddress: z.string().optional(),
-    barangay: z.string().optional(),
+    barangay: z.string().refine(val => !val || isValidBarangay(val), { message: 'Please select a valid Dagupan barangay from the suggestions' }).optional(),
     receipt: z.instanceof(File).optional(),
 }).refine(data => {
     if (data.shippingMethod === 'local-delivery') {
