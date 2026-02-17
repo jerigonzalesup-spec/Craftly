@@ -8,6 +8,11 @@ import com.craftly.app.R
 import com.craftly.app.databinding.ActivityMainBinding
 import com.craftly.app.presentation.auth.AuthManager
 import com.craftly.app.presentation.auth.LoginActivity
+import com.craftly.app.presentation.ui.fragments.CartFragment
+import com.craftly.app.presentation.ui.fragments.HomeFragment
+import com.craftly.app.presentation.ui.fragments.OrdersFragment
+import com.craftly.app.presentation.ui.fragments.ProfileFragment
+import com.craftly.app.presentation.ui.fragments.SearchFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -65,10 +70,3 @@ class MainActivity : AppCompatActivity() {
             .commit()
     }
 }
-
-// Placeholder Fragments
-class HomeFragment : Fragment(R.layout.fragment_home)
-class SearchFragment : Fragment(R.layout.fragment_search)
-class CartFragment : Fragment(R.layout.fragment_cart)
-class OrdersFragment : Fragment(R.layout.fragment_orders)
-class ProfileFragment : Fragment(R.layout.fragment_profile)
