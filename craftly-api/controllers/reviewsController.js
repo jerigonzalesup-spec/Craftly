@@ -1,5 +1,6 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
+import { invalidateProductStats } from './productController.js';
 
 const db = getFirestore();
 
@@ -79,6 +80,9 @@ export const submitReview = asyncHandler(async (req, res) => {
 
     // Commit batch write (admin SDK has no permission restrictions)
     await batch.commit();
+
+    // Invalidate stats cache for this product since review count changed
+    invalidateProductStats(productId);
 
     console.log(`✅ Review submitted successfully for product ${productId}`);
 

@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { useFirestore } from '../firebase/provider';
-import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { useEffect } from 'react';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { Skeleton } from '../components/ui/skeleton';
 import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/button';
@@ -12,62 +11,9 @@ export default function SellerProfilePage() {
   const params = useParams();
   const sellerId = params?.sellerId;
   const navigate = useNavigate();
-  const firestore = useFirestore();
   const { user: authUser } = useUser();
 
-  const [seller, setSeller] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-
-  // Fetch seller information
-  useEffect(() => {
-    if (!firestore || !sellerId) return;
-
-    const fetchSeller = async () => {
-      setLoading(true);
-      try {
-        const userRef = doc(firestore, 'users', sellerId);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          setSeller({ id: userSnap.id, ...userSnap.data() });
-        } else {
-          setNotFound(true);
-        }
-      } catch (error) {
-        console.error('Error fetching seller:', error);
-        setNotFound(true);
-      }
-      setLoading(false);
-    };
-
-    fetchSeller();
-  }, [firestore, sellerId]);
-
-  // Fetch seller's products
-  useEffect(() => {
-    if (!firestore || !sellerId) return;
-
-    setProductsLoading(true);
-    const q = query(
-      collection(firestore, 'products'),
-      where('createdBy', '==', sellerId),
-      where('status', '==', 'active')
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const prods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProducts(prods);
-      setProductsLoading(false);
-    }, (error) => {
-      console.error('Error fetching seller products:', error);
-      setProductsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [firestore, sellerId]);
+  const { profile: seller, loading, error, products, productsLoading, notFound } = useUserProfile(sellerId);
 
   if (loading) {
     return (
@@ -192,8 +138,8 @@ export default function SellerProfilePage() {
                       </>
                     ) : (
                       <>
-                        <Truck className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-400">Shipping Not Available</span>
+                        <Truck className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Shipping Not Available</span>
                       </>
                     )}
                   </div>
@@ -205,8 +151,8 @@ export default function SellerProfilePage() {
                       </>
                     ) : (
                       <>
-                        <MapPinOff className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-400">Local Pickup Not Available</span>
+                        <MapPinOff className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Local Pickup Not Available</span>
                       </>
                     )}
                   </div>

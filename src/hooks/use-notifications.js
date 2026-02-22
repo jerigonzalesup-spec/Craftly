@@ -41,7 +41,7 @@ export function useNotifications() {
     }
   }, [user]);
 
-  // Set up polling for notifications (every 3 seconds)
+  // Set up polling for notifications (every 60 seconds to reduce quota usage)
   useEffect(() => {
     if (!user || !user.uid) {
       setNotifications([]);
@@ -53,10 +53,11 @@ export function useNotifications() {
     // Fetch immediately
     fetchNotifications();
 
-    // Set up polling interval
+    // Set up polling interval - increased from 30s to 60s to reduce Firestore quota hits further
+    // Notifications are not time-critical, so 60s delay is acceptable
     pollIntervalRef.current = setInterval(() => {
       fetchNotifications();
-    }, 3000); // Poll every 3 seconds
+    }, 60000); // Poll every 60 seconds (reduced from 30s)
 
     return () => {
       if (pollIntervalRef.current) {

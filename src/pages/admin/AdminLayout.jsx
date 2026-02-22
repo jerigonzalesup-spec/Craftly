@@ -1,7 +1,7 @@
 import { useUser } from '@/firebase/auth/use-user';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
-import { LayoutDashboard, FileText, Package, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { LayoutDashboard, FileText, Package, Users, AlertTriangle } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,14 +50,30 @@ function AdminNav({ user }) {
 export default function AdminLayout() {
     const { user, loading } = useUser();
     const navigate = useNavigate();
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        if (!loading && (!user || user.role !== 'admin')) {
+        if (!loading && (!user || !user.roles?.includes('admin'))) {
             navigate('/', { replace: true });
         }
     }, [user, loading, navigate]);
 
-    if (loading || !user || user.role !== 'admin') {
+    // Listen for errors globally
+    useEffect(() => {
+        const handleError = (event) => {
+            // Only catch Firestore-related errors
+            if (event.message?.includes('FIRESTORE') || event.message?.includes('Firestore')) {
+                console.warn('⚠️ Firestore error detected, but continuing:', event.message);
+                // Don't crash - continue serving the page
+                event.preventDefault();
+            }
+        };
+
+        window.addEventListener('error', handleError);
+        return () => window.removeEventListener('error', handleError);
+    }, []);
+
+    if (loading || !user || !user.roles?.includes('admin')) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -72,7 +88,22 @@ export default function AdminLayout() {
         <div className="flex min-h-screen">
             <AdminNav user={user} />
             <main className="flex-1 overflow-y-auto">
-                <Outlet />
+                {error && (
+                    <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-md m-4 flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                            <h3 className="font-medium">Error Loading Page</h3>
+                            <p className="text-sm mt-1">{error}</p>
+                            <button
+                                onClick={() => setError(null)}
+                                className="text-sm text-destructive hover:underline mt-2"
+                            >
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                )}
+                <Outlet context={{ setError }} />
             </main>
         </div>
     );

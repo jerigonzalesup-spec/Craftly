@@ -8,19 +8,36 @@ import { Timestamp } from 'firebase/firestore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Simple in-memory cache to reduce quota usage
+const productCache = {
+  data: null,
+  timestamp: null,
+  ttl: 15 * 60 * 1000, // 15 minutes cache duration (increased from 5 min to reduce quota)
+};
+
 export class ProductService {
   constructor() {
     // No longer needs firestore instance
   }
 
   /**
-   * Fetch active products from API
+   * Fetch active products from API with caching
    * @param {Function} onSuccess - Callback when products are loaded
    * @param {Function} onError - Callback when error occurs
    * @returns {Function} Unsubscribe function (no-op for HTTP calls)
    */
   subscribeToActiveProducts(onSuccess, onError) {
-    // Start the async fetch
+    const now = Date.now();
+
+    // Check if cache is still valid
+    if (productCache.data && productCache.timestamp && (now - productCache.timestamp) < productCache.ttl) {
+      console.log('📦 Using cached products (age: ' + (now - productCache.timestamp) / 1000 + 's)');
+      onSuccess(productCache.data);
+      return () => {};
+    }
+
+    // Cache miss or expired, fetch from API
+    console.log('📦 Fetching products from API...');
     fetch(`${API_URL}/api/products`)
       .then((response) => {
         if (!response.ok) {
@@ -30,6 +47,9 @@ export class ProductService {
       })
       .then((json) => {
         if (json.success && Array.isArray(json.data)) {
+          // Update cache
+          productCache.data = json.data;
+          productCache.timestamp = now;
           onSuccess(json.data);
         } else {
           throw new Error('Invalid API response format');
@@ -42,6 +62,15 @@ export class ProductService {
 
     // Return no-op unsubscribe function
     return () => {};
+  }
+
+  /**
+   * Clear the product cache (call after adding/updating/deleting products)
+   */
+  clearCache() {
+    productCache.data = null;
+    productCache.timestamp = null;
+    console.log('🗑️ Product cache cleared');
   }
 
   /**

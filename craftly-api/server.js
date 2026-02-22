@@ -13,6 +13,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import reviewsRoutes from './routes/reviewsRoutes.js';
 import notificationsRoutes from './routes/notificationsRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import imagesRoutes from './routes/images.js';
 
 // Load environment variables
 dotenv.config();
@@ -51,9 +52,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-ID'],
 }));
 
-// Body parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parser with increased limits for file uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Request logging
 app.use((req, res, next) => {
@@ -91,6 +92,9 @@ app.get('/health', (req, res) => {
 
 // Products
 app.use('/api/products', productRoutes);
+
+// Images (file upload)
+app.use('/api/images', imagesRoutes);
 
 // Favorites
 app.use('/api/favorites', favoritesRoutes);

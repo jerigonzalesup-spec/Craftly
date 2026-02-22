@@ -11,8 +11,8 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If loading is finished, we have the user object, and that user's role is admin
-    if (!loading && user?.role === 'admin') {
+    // If loading is finished, we have the user object, and that user is an admin
+    if (!loading && user?.roles?.includes('admin')) {
       // Redirect them away from the public home page.
       navigate('/admin/dashboard', { replace: true });
     }
@@ -20,7 +20,7 @@ export default function HomePage() {
 
   // While loading or if the user is an admin (and waiting for redirect), show a loader.
   // This prevents the marketplace from flashing on screen for an admin.
-  if (loading || user?.role === 'admin') {
+  if (loading || user?.roles?.includes('admin')) {
     return (
         <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

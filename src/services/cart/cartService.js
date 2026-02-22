@@ -4,17 +4,36 @@
  * This is part of the Model layer in MVVM architecture
  */
 
-const CART_STORAGE_KEY = 'cart';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Helper function to get user-specific cart storage key
+function getCartStorageKey(userId) {
+  if (!userId) {
+    console.warn('⚠️ CartService: No userId provided, returning empty key. This may cause data corruption.');
+    return 'cart_anonymous'; // Fallback for anonymous users
+  }
+  return `cart_${userId}`;
+}
+
+// Cache for cart data (short TTL since cart changes frequently)
+const cartCache = new Map(); // Map<userId, { data: Array, timestamp }>
+const CART_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache for cart (increased from 1 min to reduce quota)
 
 export class CartService {
   /**
-   * Load cart from localStorage
+   * Load cart from localStorage with user-specific key
+   * @param {String} userId - User ID (REQUIRED - prevents data leakage)
    * @returns {Array} Cart items
    */
-  static loadCartFromStorage() {
+  static loadCartFromStorage(userId) {
+    if (!userId) {
+      console.warn('⚠️ CartService.loadCartFromStorage: No userId provided, returning empty cart');
+      return [];
+    }
+
     try {
-      const storedCart = localStorage.getItem(CART_STORAGE_KEY);
+      const storageKey = getCartStorageKey(userId);
+      const storedCart = localStorage.getItem(storageKey);
       if (storedCart) {
         return JSON.parse(storedCart);
       }
@@ -26,23 +45,37 @@ export class CartService {
   }
 
   /**
-   * Save cart to localStorage
+   * Save cart to localStorage with user-specific key
+   * @param {String} userId - User ID (REQUIRED - prevents data leakage)
    * @param {Array} cartItems - Cart items to save
    */
-  static saveCartToStorage(cartItems) {
+  static saveCartToStorage(userId, cartItems) {
+    if (!userId) {
+      console.warn('⚠️ CartService.saveCartToStorage: No userId provided, cart NOT saved');
+      return;
+    }
+
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+      const storageKey = getCartStorageKey(userId);
+      localStorage.setItem(storageKey, JSON.stringify(cartItems));
     } catch (error) {
       console.error('Failed to save cart to localStorage', error);
     }
   }
 
   /**
-   * Clear cart from localStorage
+   * Clear cart from localStorage with user-specific key
+   * @param {String} userId - User ID (REQUIRED - prevents data leakage)
    */
-  static clearCartStorage() {
+  static clearCartStorage(userId) {
+    if (!userId) {
+      console.warn('⚠️ CartService.clearCartStorage: No userId provided, cart NOT cleared');
+      return;
+    }
+
     try {
-      localStorage.removeItem(CART_STORAGE_KEY);
+      const storageKey = getCartStorageKey(userId);
+      localStorage.removeItem(storageKey);
     } catch (error) {
       console.error('Failed to clear cart from localStorage', error);
     }
@@ -77,6 +110,8 @@ export class CartService {
       const json = await response.json();
       if (json.success) {
         console.log('✅ Cart synced to API');
+        // Invalidate cache after sync
+        cartCache.delete(userId);
         return { success: true, message: 'Cart synced' };
       } else {
         throw new Error('API returned error');
@@ -88,7 +123,7 @@ export class CartService {
   }
 
   /**
-   * Load cart from API
+   * Load cart from API with caching (short 1-min cache)
    * @param {String} userId - User ID
    * @returns {Promise<Array>} Cart items from API
    */
@@ -98,7 +133,18 @@ export class CartService {
       return [];
     }
 
+    const now = Date.now();
+    const cached = cartCache.get(userId);
+
+    // Check if cache is still valid (1 minute)
+    if (cached && (now - cached.timestamp) < CART_CACHE_TTL) {
+      console.log('🛒 Using cached cart (age: ' + (now - cached.timestamp) / 1000 + 's)');
+      return cached.data;
+    }
+
+    // Cache miss or expired
     try {
+      console.log('🛒 Fetching cart from API...');
       const response = await fetch(`${API_URL}/api/cart/${userId}`);
 
       if (!response.ok) {
@@ -107,6 +153,8 @@ export class CartService {
 
       const json = await response.json();
       if (json.success && Array.isArray(json.data.items)) {
+        // Update cache
+        cartCache.set(userId, { data: json.data.items, timestamp: now });
         console.log('✅ Cart loaded from API');
         return json.data.items;
       } else {
@@ -144,6 +192,8 @@ export class CartService {
       const json = await response.json();
       if (json.success) {
         console.log('✅ Cart cleared on API');
+        // Invalidate cache
+        cartCache.delete(userId);
         return { success: true };
       }
     } catch (error) {

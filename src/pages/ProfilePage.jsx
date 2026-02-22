@@ -24,7 +24,8 @@ export default function ProfilePage() {
 
     const handleLogout = async () => {
         await signOutUser();
-        navigate('/');
+        // Use window.location.href to ensure proper navigation
+        window.location.href = '/';
     };
     
     if (loading || !user) {
@@ -42,7 +43,7 @@ export default function ProfilePage() {
             <div className="space-y-8">
                 <ProfileForm />
                 <ChangePasswordForm />
-                {user.role === 'buyer' && <BecomeSellerSection />}
+                {user.roles?.includes('buyer') && <BecomeSellerSection />}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">

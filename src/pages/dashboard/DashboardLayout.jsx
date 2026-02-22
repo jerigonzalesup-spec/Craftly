@@ -44,12 +44,12 @@ export default function DashboardLayout() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!loading && (!user || user.role !== 'seller')) {
+        if (!loading && (!user || !user.roles?.includes('seller'))) {
             navigate('/', { replace: true });
         }
     }, [user, loading, navigate]);
 
-    if (loading || !user || user.role !== 'seller') {
+    if (loading || !user || !user.roles?.includes('seller')) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <div className="flex flex-col items-center gap-4">

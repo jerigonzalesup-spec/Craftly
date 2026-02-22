@@ -23,15 +23,18 @@ import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/co
 import { useState } from 'react';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { uploadProductImage } from '@/lib/imageUpload';
+import { SCHEMAS, MESSAGES } from '@/lib/formValidation';
+import { convertApiErrorMessage } from '@/lib/errorMessages';
 
 const formSchema = z.object({
-  productName: z.string().min(3, 'Product name must be 3-80 characters.').max(80, 'Product name must be 3-80 characters.'),
-  description: z.string().min(10, 'Description must be 10-200 characters.').max(200, 'Description must be 10-200 characters.').regex(/[a-zA-Z]/, 'Description must contain letters, not just numbers.'),
-  price: z.coerce.number().positive('Price must be a positive number.').max(1000000, "Price must be less than ₱1,000,000."),
-  stock: z.coerce.number().int().min(0, 'Stock cannot be negative.').max(10000, "Stock cannot be more than 10,000."),
-  category: z.string().min(3, 'Category must be 3-30 characters.').max(30, 'Category must be 3-30 characters.').regex(/[a-zA-Z]/, 'Category must contain letters, not just numbers.'),
-  materialsUsed: z.string().min(3, 'Materials must be 3-50 characters.').max(50, 'Materials must be 3-50 characters.').regex(/[a-zA-Z]/, 'Materials must contain letters, not just numbers.'),
-  imageDataUri: z.string().startsWith('data:image/', { message: 'Please upload a valid image file.' }),
+  productName: SCHEMAS.productName,
+  description: SCHEMAS.description,
+  price: SCHEMAS.price,
+  stock: SCHEMAS.stock,
+  category: SCHEMAS.category,
+  materialsUsed: SCHEMAS.materialsUsed,
+  imageUrl: SCHEMAS.imageUrl,
 });
 
 
@@ -40,6 +43,8 @@ export function AddProductForm({ onClose }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [imagePreview, setImagePreview] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -50,30 +55,35 @@ export function AddProductForm({ onClose }) {
       stock: 1,
       category: '',
       materialsUsed: '',
-      imageDataUri: '',
+      imageUrl: '',
     },
   });
-  
+
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) { // 1MB limit
-        form.setError('imageDataUri', { message: 'Image file must be less than 1MB.' });
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit (matching Firebase Storage limit)
+        form.setError('imageUrl', { message: 'Image must be < 5MB' });
         setImagePreview(null);
-        form.setValue('imageDataUri', '');
+        setImageFile(null);
+        form.setValue('imageUrl', '');
         return;
       }
 
+      // Store the file for later upload
+      setImageFile(file);
+
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result;
-        form.setValue('imageDataUri', dataUri, { shouldValidate: true });
         setImagePreview(dataUri);
       };
       reader.onerror = () => {
-        form.setError('imageDataUri', { message: 'Failed to read image file.' });
+        form.setError('imageUrl', { message: 'Failed to read image' });
         setImagePreview(null);
-        form.setValue('imageDataUri', '');
+        setImageFile(null);
+        form.setValue('imageUrl', '');
       };
       reader.readAsDataURL(file);
     }
@@ -85,33 +95,59 @@ export function AddProductForm({ onClose }) {
       return;
     }
 
-    const productData = {
-      name: values.productName,
-      sellerName: user.displayName || 'Craftly Seller',
-      description: values.description,
-      price: values.price,
-      stock: values.stock,
-      category: values.category.toLowerCase().replace(/\s+/g, '-'),
-      materialsUsed: values.materialsUsed,
-      createdBy: user.uid,
-      images: [values.imageDataUri], 
-      status: 'active',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    if (!imageFile) {
+      form.setError('imageUrl', { message: 'Please select an image to upload.' });
+      return;
+    }
 
-    const productsCollection = collection(firestore, 'products');
-    addDoc(productsCollection, productData).then(() => {
-      toast({ title: 'Product Posted!', description: `${values.productName} has been posted successfully.` });
-      onClose();
-    }).catch((serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: productsCollection.path,
-            operation: 'create',
-            requestResourceData: productData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    });
+    try {
+      setUploading(true);
+
+      // Upload image to Firebase Storage
+      const imageUrl = await uploadProductImage(imageFile, user.uid);
+
+      const productData = {
+        name: values.productName,
+        sellerName: user.displayName || 'Craftly Seller',
+        description: values.description,
+        price: values.price,
+        stock: values.stock,
+        category: values.category.toLowerCase().replace(/\s+/g, '-'),
+        materialsUsed: values.materialsUsed,
+        createdBy: user.uid,
+        images: [imageUrl], // Store Firebase Storage URL
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      const productsCollection = collection(firestore, 'products');
+      addDoc(productsCollection, productData).then(() => {
+        toast({ title: 'Success!', description: `${values.productName} posted.` });
+        
+        // Set flag to refetch dashboard stats
+        localStorage.setItem(`dashboardNeedsUpdate_${user.uid}`, 'true');
+        
+        onClose();
+      }).catch((serverError) => {
+          const errorMsg = convertApiErrorMessage(serverError);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: errorMsg
+          });
+          const permissionError = new FirestorePermissionError({
+              path: productsCollection.path,
+              operation: 'create',
+              requestResourceData: productData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+      });
+    } catch (error) {
+      form.setError('imageUrl', { message: error.message || 'Image upload failed' });
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -211,22 +247,23 @@ export function AddProductForm({ onClose }) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
-            name="imageDataUri"
-            render={({ field }) => ( 
+            name="imageUrl"
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Product Image</FormLabel>
                 <FormControl>
-                  <Input 
-                      type="file" 
+                  <Input
+                      type="file"
                       accept="image/png, image/jpeg, image/webp"
                       onChange={handleImageChange}
+                      disabled={uploading}
                   />
                 </FormControl>
                 <FormDescription>
-                  Upload an image for your product (max 1MB).
+                  Upload an image for your product (max 5MB).
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -244,11 +281,11 @@ export function AddProductForm({ onClose }) {
 
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={uploading || form.formState.isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Adding Product...' : 'Add Product'}
+            <Button type="submit" disabled={uploading || form.formState.isSubmitting || !imageFile}>
+              {uploading ? 'Uploading Image...' : form.formState.isSubmitting ? 'Adding Product...' : 'Add Product'}
             </Button>
           </DialogFooter>
         </form>

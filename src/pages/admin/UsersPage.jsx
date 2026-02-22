@@ -122,6 +122,29 @@ export default function AdminUsersPage() {
       }
     }
 
+    // Store original state for rollback
+    const originalUsers = users;
+
+    // Optimistic update
+    setUsers(prevUsers => {
+      return prevUsers.map(u => {
+        if (u.uid !== selectedUser.uid) return u;
+
+        if (action === 'role') {
+          return { ...u, role: newRole, roles: [newRole] };
+        } else if (action === 'delete') {
+          return { ...u, deletedAt: new Date().toISOString() };
+        } else if (action === 'recover') {
+          return { ...u, deletedAt: null };
+        } else if (action === 'ban') {
+          return { ...u, isBanned: true, banReason, banUntil: new Date(Date.now() + parseInt(banDuration) * 24 * 60 * 60 * 1000).toISOString() };
+        } else if (action === 'unban') {
+          return { ...u, isBanned: false, banReason: null, banUntil: null };
+        }
+        return u;
+      });
+    });
+
     try {
       if (action === 'role') {
         await AdminService.changeUserRole(adminUser.uid, selectedUser.uid, newRole);
@@ -140,9 +163,13 @@ export default function AdminUsersPage() {
         toast({ title: 'User Unbanned', description: 'User ban has been lifted.' });
       }
 
-      // Refresh users list
-      const data = await AdminService.getAdminUsers(adminUser.uid);
-      setUsers(data || []);
+      // Refetch fresh data in background (no await, no blocking)
+      AdminService.getAdminUsers(adminUser.uid).then(data => {
+        setUsers(data || []);
+      }).catch(err => {
+        console.error('Error refetching users:', err);
+        // If refetch fails, keep optimistic update
+      });
 
       // Reset
       setIsAlertOpen(false);
@@ -154,6 +181,8 @@ export default function AdminUsersPage() {
       setAdminPassword('');
     } catch (error) {
       console.error('Error performing action:', error);
+      // Rollback optimistic update on error
+      setUsers(originalUsers);
       toast({ variant: 'destructive', title: "Error", description: error.message });
     }
   };

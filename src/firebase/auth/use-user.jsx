@@ -47,54 +47,13 @@ export function useUser() {
     };
   }, []);
 
-  // Set up real-time listener for user document changes (e.g., role updates by admin)
+  // Disabled real-time listener due to Firestore SDK compatibility issues
+  // Real-time role updates will be available after page refresh from localStorage
+  // TODO: Re-enable after upgrading to newer Firestore SDK version
   useEffect(() => {
-    if (!user || !user.uid) return;
-
-    const firestore = getFirestore();
-    const userDocRef = doc(firestore, 'users', user.uid);
-
-    try {
-      const unsubscribe = onSnapshot(
-        userDocRef,
-        (docSnapshot) => {
-          if (docSnapshot.exists()) {
-            const updatedUserData = docSnapshot.data();
-            // Check if role or other important fields have changed
-            if (updatedUserData.role !== user.role) {
-              console.log(`👤 User role updated from ${user.role} to ${updatedUserData.role}`);
-              // Update both local state and localStorage
-              const updatedUser = { ...user, ...updatedUserData };
-              setUser(updatedUser);
-              localStorage.setItem('craftly_user', JSON.stringify(updatedUser));
-              // Dispatch event so other components can react to the change
-              window.dispatchEvent(
-                new CustomEvent('craftly-user-changed', { detail: updatedUser })
-              );
-            }
-          }
-        },
-        (error) => {
-          // Silently handle permission errors for API-authenticated users
-          // API users don't have Firebase Auth context, so they can't listen to Firestore
-          if (error.code === 'permission-denied') {
-            console.log('Note: Real-time user updates not available for API-authenticated users. Use localStorage updates instead.');
-          } else {
-            console.error('Error listening to user document changes:', error);
-          }
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (error) {
-      // Catch any errors during listener setup
-      if (error.code === 'permission-denied') {
-        console.log('Note: Real-time user updates not available for API-authenticated users.');
-      } else {
-        console.error('Error setting up user listener:', error);
-      }
-    }
-  }, [user]);
+    // Listener intentionally disabled - causes Firestore watch target state corruption
+    // Users can still get role updates on next login/page refresh via localStorage
+  }, [user?.uid]);
 
   return { user, loading };
 }

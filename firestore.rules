@@ -3,9 +3,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is admin
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Helper functions to check user roles
+    // Supports both new roles array and legacy role field for backward compatibility
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getRoles(userData) {
+      return userData.get('roles', []);
+    }
+
+    function isAdmin(userData) {
+      let roles = getRoles(userData);
+      return 'admin' in roles || userData.get('role', '') == 'admin';
+    }
+
+    function isSeller(userData) {
+      let roles = getRoles(userData);
+      return 'seller' in roles || userData.get('role', '') == 'seller';
+    }
+
+    function isBuyer(userData) {
+      let roles = getRoles(userData);
+      return 'buyer' in roles || userData.get('role', '') == 'buyer';
     }
 
     // Users
@@ -17,14 +37,14 @@ service cloud.firestore {
       // OR admins can read all user profiles
       // BUT cannot read deleted users (unless own or admin)
       allow read: if (request.auth != null && request.auth.uid == userId)
-              || (request.auth != null && resource.data.get('role', '') == 'seller' && resource.data.get('accountStatus', 'active') != 'deleted')
-              || (request.auth != null && isAdmin());
+              || (request.auth != null && ('seller' in resource.data.get('roles', []) || resource.data.get('role', '') == 'seller') && resource.data.get('accountStatus', 'active') != 'deleted')
+              || (request.auth != null && isAdmin(getUserData()));
 
       // Only authenticated users can list users, admins can list all
       allow list: if request.auth != null;
 
-      // A user can update their own profile fields, gcash details, recovery codes, or password hash
-      allow update: if request.auth != null && request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'email', 'gcashName', 'gcashNumber', 'currentPassword', 'recoveryCodes', 'recoveryCodesUpdatedAt', 'lastPasswordRecovery', 'resetPassword', 'contactNumber', 'streetAddress', 'barangay', 'city', 'postalCode', 'country', 'passwordHash', 'updatedAt']);
+      // A user can update their own profile fields, gcash details, recovery codes, password hash, and shop profile
+      allow update: if request.auth != null && request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'email', 'gcashName', 'gcashNumber', 'currentPassword', 'recoveryCodes', 'recoveryCodesUpdatedAt', 'lastPasswordRecovery', 'resetPassword', 'contactNumber', 'streetAddress', 'barangay', 'city', 'postalCode', 'country', 'passwordHash', 'updatedAt', 'shopName', 'shopAddress', 'shopBarangay', 'shopCity', 'allowShipping', 'allowPickup']);
 
       // Notifications Subcollection
       match /notifications/{notificationId} {
@@ -54,9 +74,9 @@ service cloud.firestore {
                         request.resource.data.stock >= 0 &&
                         request.resource.data.stock < resource.data.stock
                     )
-                    || (request.auth != null && isAdmin());
+                    || (request.auth != null && isAdmin(getUserData()));
 
-      allow delete: if request.auth != null && (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow delete: if request.auth != null && (resource.data.createdBy == request.auth.uid || isAdmin(getUserData()));
 
       // Reviews Subcollection
       match /reviews/{userId} {
@@ -74,11 +94,11 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         request.auth.uid == resource.data.buyerId
         || (resource.data.sellerIds != null && request.auth.uid in resource.data.sellerIds)
-        || isAdmin()
+        || isAdmin(getUserData())
       );
       allow list: if request.auth != null && (
         // Admin can list all orders
-        isAdmin()
+        isAdmin(getUserData())
         // Buyer can only list their own orders
         || request.auth.uid == resource.data.buyerId
         // Seller can only list orders containing their products
@@ -96,16 +116,16 @@ service cloud.firestore {
                       || (resource.data.sellerIds != null
                           && request.auth.uid in resource.data.sellerIds
                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'paymentStatus']))
-                      || (isAdmin())
+                      || (isAdmin(getUserData()))
                     );
     }
 
     // Seller Applications
     match /seller-applications/{userId} {
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      allow list: if request.auth != null && isAdmin();
-      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(getUserData()));
+      allow list: if request.auth != null && isAdmin(getUserData());
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin(getUserData()));
     }
 
     // Admin Logs
@@ -118,6 +138,16 @@ service cloud.firestore {
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // Product images uploaded by sellers
+    match /products/{sellerUid}/{imagePath=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                    && request.auth.uid == sellerUid
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+    }
+
+    // Payment receipts from orders
     match /receipts/{orderId} {
         allow read: if request.auth != null;
         allow create: if request.auth != null

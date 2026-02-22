@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useUser } from '@/firebase/auth/use-user';
 import { signOutUser } from '@/firebase/auth/auth';
 import { Skeleton } from './ui/skeleton';
@@ -18,14 +18,14 @@ import { getInitials } from '@/lib/utils';
 
 export function UserNav() {
   const { user, loading } = useUser();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
     await signOutUser();
-    navigate('/');
-    window.location.reload(); // Force a refresh to clear all state
+    // Use window.location.href instead of navigate + reload
+    // This ensures we navigate THEN reload, not reload the current page
+    window.location.href = '/';
   };
-  
+
   if (loading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
   }
@@ -61,7 +61,7 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {user.role === 'admin' ? (
+        {user.roles?.includes('admin') ? (
              <DropdownMenuItem asChild>
                 <Link to="/admin/dashboard">
                     <ShieldCheck className="mr-2 h-4 w-4" />
@@ -70,7 +70,7 @@ export function UserNav() {
             </DropdownMenuItem>
         ) : (
             <>
-                {user.role === 'seller' && (
+                {user.roles?.includes('seller') && (
                     <DropdownMenuItem asChild>
                         <Link to="/dashboard">
                             <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -98,7 +98,7 @@ export function UserNav() {
                 </DropdownMenuItem>
             </>
         )}
-       
+
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />

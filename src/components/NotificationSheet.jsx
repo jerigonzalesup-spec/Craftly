@@ -12,13 +12,15 @@ import { Bell, CheckCheck, Inbox, X } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
 import { Link } from "react-router-dom";
-import { useNotifications } from "@/hooks/use-notifications";
+import { useUserNotificationsOptimized } from "@/hooks/use-user-notifications-optimized";
+import { useUser } from "@/firebase/auth/use-user";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "./ui/skeleton";
 
 export function NotificationSheet() {
-  const { notifications, unreadCount, markAllAsRead, deleteNotification, loading } = useNotifications();
+  const { user } = useUser();
+  const { notifications, unreadCount, markAllAsRead, deleteNotification, loading } = useUserNotificationsOptimized(user?.uid);
 
   const handleDelete = (e, notificationId) => {
     e.preventDefault();

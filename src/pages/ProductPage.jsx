@@ -1,13 +1,11 @@
 
 import { useParams, Link } from 'react-router-dom';
 import { ProductImageCarousel } from '../components/ProductImageCarousel';
-import { ChevronRight, Heart } from 'lucide-react';
+import { ChevronRight, Heart, Truck, MapPin } from 'lucide-react';
 import { AddToCartForm } from '../components/AddToCartForm';
 import { ProductReviews } from '../components/ProductReviews';
 import { Separator } from '../components/ui/separator';
 import { useEffect, useState } from 'react';
-import { useFirestore } from '../firebase/provider';
-import { doc, getDoc } from 'firebase/firestore';
 import { Skeleton } from '../components/ui/skeleton';
 import { categories } from '../lib/data';
 import { useFavorites } from '../hooks/use-favorites';
@@ -29,50 +27,61 @@ export default function ProductPage() {
   const id = params?.id;
   const [product, setProduct] = useState(null);
   const [sellerName, setSellerName] = useState(null);
+  const [sellerDelivery, setSellerDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const firestore = useFirestore();
   const { user: authUser } = useUser();
   const { isFavorited, toggleFavorite, loading: favoritesLoading } = useFavorites();
 
   useEffect(() => {
-    if (!firestore || !id) return;
-    const fetchProduct = async () => {
-      setLoading(true);
-      const docRef = doc(firestore, 'products', id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const productData = { id: docSnap.id, ...docSnap.data() };
-        if (productData.status === 'archived') {
-            setNotFound(true);
-        } else {
-            setProduct(productData);
+    if (!id) return;
 
-            // Fetch seller name from users collection if not in product data
-            if (!productData.sellerName && productData.createdBy) {
-              try {
-                const sellerRef = doc(firestore, 'users', productData.createdBy);
-                const sellerSnap = await getDoc(sellerRef);
-                if (sellerSnap.exists()) {
-                  setSellerName(sellerSnap.data().fullName || 'Craftly Seller');
-                } else {
-                  setSellerName('Craftly Seller');
-                }
-              } catch (error) {
-                console.error('Error fetching seller name:', error);
-                setSellerName('Craftly Seller');
-              }
-            } else {
-              setSellerName(productData.sellerName || 'Craftly Seller');
-            }
+    const fetchProductDetails = async () => {
+      setLoading(true);
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+        // Fetch product via API
+        const response = await fetch(`${API_URL}/api/products/${id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          setNotFound(true);
+          setLoading(false);
+          return;
         }
-      } else {
+
+        const data = await response.json();
+        const productData = data.data || data;
+
+        if (productData.status === 'archived') {
+          setNotFound(true);
+        } else {
+          setProduct(productData);
+          setSellerName(productData.sellerName || 'Craftly Seller');
+
+          // Extract delivery methods from product data if available
+          if (productData.allowShipping !== undefined || productData.allowPickup !== undefined) {
+            setSellerDelivery({
+              allowShipping: productData.allowShipping !== false,
+              allowPickup: productData.allowPickup === true,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching product details:", error);
         setNotFound(true);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    fetchProduct();
-  }, [firestore, id]);
+
+    fetchProductDetails();
+  }, [id]);
 
   if (loading) {
     return (
@@ -138,7 +147,25 @@ export default function ProductPage() {
             )}
             <p className="text-2xl font-semibold text-primary mb-4">₱{product.price.toFixed(2)}</p>
             <p className="text-muted-foreground text-base leading-relaxed mb-6">{product.description}</p>
-            
+
+            {/* Delivery Method Badges */}
+            {sellerDelivery && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {sellerDelivery.allowShipping && (
+                  <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 rounded-md text-sm text-blue-700 font-medium">
+                    <Truck className="h-4 w-4" />
+                    <span>Shipping Available</span>
+                  </div>
+                )}
+                {sellerDelivery.allowPickup && (
+                  <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-100 rounded-md text-sm text-green-700 font-medium">
+                    <MapPin className="h-4 w-4" />
+                    <span>Local Pickup Available</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold mb-2">Details</h3>
               <div className="text-sm space-y-2 text-muted-foreground">

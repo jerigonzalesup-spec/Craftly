@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from './use-toast';
 import { CartService } from '@/services/cart/cartService';
@@ -9,37 +9,36 @@ import { CartService } from '@/services/cart/cartService';
  * Manages cart state and business logic
  */
 export function useCartViewModel() {
-  const [cartItems, setCartItems] = useState(() => {
-    // Initialize state from localStorage immediately
-    return CartService.loadCartFromStorage();
-  });
+  const [cartItems, setCartItems] = useState([]);
   const { toast } = useToast();
   const { user, loading: userLoading } = useUser();
-  const userRef = useRef(user);
 
-  // Persist cart to localStorage whenever it changes
+  // Load cart from user-specific storage when user becomes available
   useEffect(() => {
-    CartService.saveCartToStorage(cartItems);
-  }, [cartItems]);
+    if (!userLoading && user && user.uid) {
+      console.log(`🛒 Loading cart for user ${user.uid}`);
+      const cartFromStorage = CartService.loadCartFromStorage(user.uid);
+      setCartItems(cartFromStorage);
+    } else if (!userLoading && !user) {
+      // User logged out or not loaded
+      console.log('🛒 No user logged in, clearing cart state');
+      setCartItems([]);
+    }
+  }, [user?.uid, userLoading]); // Only re-run when user.uid or loading status changes
+
+  // Persist cart to localStorage whenever it changes (only if user is logged in)
+  useEffect(() => {
+    if (user && user.uid && cartItems.length >= 0) {
+      CartService.saveCartToStorage(user.uid, cartItems);
+    }
+  }, [user?.uid, cartItems]); // Only re-run when user.uid or cartItems changes
 
   // Sync cart to API whenever it changes (if user is logged in)
   useEffect(() => {
     if (user && user.uid) {
       CartService.syncCartToAPI(user.uid, cartItems);
     }
-  }, [user, cartItems]);
-
-  // Clear cart when user logs out
-  useEffect(() => {
-    if (!userLoading) {
-      // Check if user status changed from logged in to logged out
-      if (userRef.current && !user) {
-        setCartItems([]); // Clear the cart
-        CartService.clearCartStorage();
-      }
-      userRef.current = user;
-    }
-  }, [user, userLoading]);
+  }, [user?.uid, cartItems]); // Only re-run when user.uid or cartItems changes
 
   // Action: Add to cart
   const addToCart = useCallback(
@@ -117,12 +116,12 @@ export function useCartViewModel() {
   // Action: Clear cart
   const clearCart = useCallback(() => {
     setCartItems([]);
-    CartService.clearCartStorage();
-    // Also clear cart on API if user is logged in
+    // Clear cart from user-specific storage if user is logged in
     if (user && user.uid) {
+      CartService.clearCartStorage(user.uid);
       CartService.clearCartOnAPI(user.uid);
     }
-  }, [user]);
+  }, [user?.uid, user]);
 
   // Query: Calculate cart total
   const cartTotal = useMemo(() => {

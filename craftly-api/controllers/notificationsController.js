@@ -3,10 +3,27 @@ import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 
 const db = getFirestore();
 
+// Server-side notifications cache to reduce Firestore quota
+const notificationsCache = new Map();
+const NOTIFICATIONS_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+// Cache entry structure: { data: notifications, timestamp: Date, unreadCount: number }
+const isCacheValid = (cacheEntry) => {
+  if (!cacheEntry) return false;
+  const now = new Date().getTime();
+  return now - cacheEntry.timestamp < NOTIFICATIONS_CACHE_TTL;
+};
+
+const invalidateNotificationsCache = (userId) => {
+  notificationsCache.delete(userId);
+  console.log(`🗑️ Invalidated notifications cache for user: ${userId}`);
+};
+
 /**
  * GET /api/notifications/:userId
  * Fetch all notifications for a user
  * Uses Admin SDK - bypasses Firestore security rules
+ * Implements 15-minute server-side caching to reduce Firestore quota
  */
 export const getUserNotifications = asyncHandler(async (req, res) => {
   const { userId } = req.params;
@@ -18,10 +35,40 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
   console.log(`🔔 Fetching notifications for user: ${userId}`);
 
   try {
-    const notificationsSnapshot = await db
+    // Check cache first before querying Firestore
+    const cachedData = notificationsCache.get(userId);
+    if (isCacheValid(cachedData)) {
+      console.log(`✅ Cache HIT for user ${userId} notifications (age: ${Math.round((new Date().getTime() - cachedData.timestamp) / 1000)}s)`);
+      return res.status(200).json({
+        success: true,
+        data: {
+          notifications: cachedData.data,
+          unreadCount: cachedData.unreadCount,
+          fromCache: true,
+        },
+      });
+    }
+
+    // Check if user exists first
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      console.log(`ℹ️ User ${userId} not found, returning empty notifications`);
+      return res.status(200).json({
+        success: true,
+        data: {
+          notifications: [],
+          unreadCount: 0,
+        },
+      });
+    }
+
+    const notificationsRef = db
       .collection('users')
       .doc(userId)
-      .collection('notifications')
+      .collection('notifications');
+
+    // Check if notifications sub-collection exists
+    const notificationsSnapshot = await notificationsRef
       .orderBy('createdAt', 'desc')
       .get();
 
@@ -32,7 +79,14 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
 
     const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-    console.log(`✅ Found ${notifications.length} notifications for user ${userId}`);
+    // Cache the results
+    notificationsCache.set(userId, {
+      data: notifications,
+      unreadCount,
+      timestamp: new Date().getTime(),
+    });
+
+    console.log(`📦 Cache MISS - Fresh fetch: ${notifications.length} notifications for user ${userId}`);
 
     res.status(200).json({
       success: true,
@@ -43,6 +97,16 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error(`❌ Error fetching notifications for user ${userId}:`, error);
+    // Return empty notifications instead of error to prevent UI breakdown
+    if (error.message && error.message.includes('No documents to sort')) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          notifications: [],
+          unreadCount: 0,
+        },
+      });
+    }
     throw new ApiError(`Failed to fetch notifications: ${error.message}`, 500);
   }
 });
@@ -50,6 +114,7 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
 /**
  * PUT /api/notifications/:userId/:notificationId/mark-as-read
  * Mark a notification as read
+ * Invalidates cache to ensure next fetch gets updated data
  */
 export const markNotificationAsRead = asyncHandler(async (req, res) => {
   const { userId, notificationId } = req.params;
@@ -72,6 +137,9 @@ export const markNotificationAsRead = asyncHandler(async (req, res) => {
       readAt: new Date().toISOString(),
     });
 
+    // Invalidate cache so next fetch gets updated data
+    invalidateNotificationsCache(userId);
+
     console.log(`✅ Notification marked as read: ${notificationId}`);
 
     res.status(200).json({
@@ -90,6 +158,7 @@ export const markNotificationAsRead = asyncHandler(async (req, res) => {
 /**
  * PUT /api/notifications/:userId/mark-all-as-read
  * Mark all notifications as read for a user
+ * Invalidates cache to ensure next fetch gets updated data
  */
 export const markAllNotificationsAsRead = asyncHandler(async (req, res) => {
   const { userId } = req.params;
@@ -119,6 +188,9 @@ export const markAllNotificationsAsRead = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate cache so next fetch gets updated data
+    invalidateNotificationsCache(userId);
+
     console.log(
       `✅ All notifications marked as read for user ${userId}`
     );
@@ -136,6 +208,7 @@ export const markAllNotificationsAsRead = asyncHandler(async (req, res) => {
 /**
  * DELETE /api/notifications/:userId/:notificationId
  * Delete a notification
+ * Invalidates cache to ensure next fetch gets updated data
  */
 export const deleteNotification = asyncHandler(async (req, res) => {
   const { userId, notificationId } = req.params;
@@ -154,6 +227,9 @@ export const deleteNotification = asyncHandler(async (req, res) => {
       .doc(notificationId);
 
     await notificationRef.delete();
+
+    // Invalidate cache so next fetch gets updated data
+    invalidateNotificationsCache(userId);
 
     console.log(`✅ Notification deleted: ${notificationId}`);
 

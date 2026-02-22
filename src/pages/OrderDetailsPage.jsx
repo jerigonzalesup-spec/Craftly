@@ -1,7 +1,5 @@
 
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase/provider';
 import { useUser } from '@/firebase/auth/use-user';
 import { useParams, Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,8 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 import { UserProfileService } from '@/services/user/userProfileService';
 import {
   Select,
@@ -57,7 +53,6 @@ function NotFound() {
 export default function OrderDetailsPage() {
   const params = useParams();
   const orderId = params.orderId;
-  const firestore = useFirestore();
   const { user, loading: userLoading } = useUser();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -67,40 +62,43 @@ export default function OrderDetailsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (userLoading || !firestore || !orderId) {
+    if (userLoading || !orderId) {
         setLoading(userLoading);
         return;
     }
 
     setLoading(true);
-    const docRef = doc(firestore, 'orders', orderId);
 
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const orderData = { id: docSnap.id, ...docSnap.data() };
+    // Fetch order details via API instead of direct Firestore
+    // This avoids permission issues and properly validates access
+    const fetchOrderDetails = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-        // Check if user is the buyer, a seller in this order, or admin
-        const isBuyer = user && orderData.buyerId === user.uid;
-        const isSellerInOrder = user && orderData.items && orderData.items.some(item => item.sellerId === user.uid);
-        const isAdmin = user && user.role === 'admin';
+        const response = await fetch(`${API_URL}/api/orders/${orderId}/details`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': user?.uid || '',
+          },
+        });
 
-        if (!user || (!isBuyer && !isSellerInOrder && !isAdmin)) {
-          setNotFound(true);
-          return;
+        if (!response.ok) {
+          throw new Error(`Failed to fetch order: ${response.status}`);
         }
-        setOrder(orderData);
-      } else {
-        setNotFound(true);
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching order details:", error);
-      setLoading(false);
-      setNotFound(true);
-    });
 
-    return () => unsubscribe();
-  }, [orderId, firestore, user, userLoading]);
+        const data = await response.json();
+        setOrder(data.data);
+      } catch (error) {
+        console.error("Error fetching order details:", error);
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrderDetails();
+  }, [orderId, user, userLoading]);
 
   // Fetch seller shop details if order is store-pickup
   useEffect(() => {
@@ -148,7 +146,7 @@ export default function OrderDetailsPage() {
     return Math.ceil(hoursRemaining);
   };
 
-  const handlePaymentStatusChange = (newStatus) => {
+  const handlePaymentStatusChange = async (newStatus) => {
     // Check if order is locked (older than 24 hours)
     if (isOrderLocked()) {
       toast({
@@ -159,29 +157,48 @@ export default function OrderDetailsPage() {
       return;
     }
 
-    if (!firestore || !user || !order) return;
-    
-    const orderRef = doc(firestore, 'orders', order.id);
+    if (!user || !order) return;
 
-    const updates = { paymentStatus: newStatus };
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    if (newStatus === 'paid' && order.orderStatus === 'pending') {
-        updates.orderStatus = 'processing';
+      const response = await fetch(`${API_URL}/api/orders/${order.id}/payment-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': user.uid,
+        },
+        body: JSON.stringify({
+          paymentStatus: newStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update payment status');
+      }
+
+      const data = await response.json();
+
+      // Update local order state
+      setOrder(prev => ({
+        ...prev,
+        paymentStatus: newStatus,
+        orderStatus: data.data.orderStatus || prev.orderStatus,
+      }));
+
+      toast({
+        title: 'Payment Status Updated',
+        description: `Order payment status set to ${newStatus}.`,
+      });
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update payment status.',
+      });
     }
-
-    updateDoc(orderRef, updates).then(() => {
-        toast({
-            title: 'Payment Status Updated',
-            description: `Order payment status set to ${newStatus}.`,
-        });
-    }).catch(serverError => {
-       const permissionError = new FirestorePermissionError({
-            path: orderRef.path,
-            operation: 'update',
-            requestResourceData: updates,
-       });
-       errorEmitter.emit('permission-error', permissionError);
-    });
   }
 
   if (userLoading || loading) {
@@ -224,7 +241,7 @@ export default function OrderDetailsPage() {
 
   // Check if current user is a seller in this specific order (not just by role)
   const isSellerInOrder = user && order && order.items && order.items.some(item => item.sellerId === user.uid);
-  const isAdmin = user && user.role === 'admin';
+  const isAdmin = user && user.roles?.includes('admin');
   const isBuyer = user && order && order.buyerId === user.uid;
 
   // Only seller/admin of items in this order OR the buyer can modify payment status
@@ -407,6 +424,27 @@ export default function OrderDetailsPage() {
                     </div>
                 ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">Waiting for buyer to upload payment receipt.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {isBuyer && order.paymentMethod === 'gcash' && (
+            <Card>
+              <CardHeader><CardTitle>Your GCash Receipt</CardTitle></CardHeader>
+              <CardContent>
+                {order.receiptImageUrl ? (
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">Here's your uploaded payment receipt.</p>
+                        <div className="relative aspect-video rounded-md border overflow-hidden">
+                            <img src={order.receiptImageUrl} alt="Your Payment Receipt" className="object-contain w-full h-full" />
+                        </div>
+                         <a href={order.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="inline-block w-full">
+                            <Button variant="outline" className="w-full"><Download className="mr-2 h-4 w-4" /> View Full Image</Button>
+                         </a>
+                    </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No receipt uploaded yet.</p>
                 )}
               </CardContent>
             </Card>

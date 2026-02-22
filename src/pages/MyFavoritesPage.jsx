@@ -1,7 +1,5 @@
 
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirestore } from '@/firebase/provider';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ProductCard } from '@/components/ProductCard';
@@ -12,31 +10,46 @@ import { Button } from '@/components/ui/button';
 export default function MyFavoritesPage() {
   const { user, loading: userLoading } = useUser();
   const { favoriteIds, loading: favoritesLoading } = useFavorites();
-  const firestore = useFirestore();
   const navigate = useNavigate();
   const [allProducts, setAllProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
-  
+
   useEffect(() => {
       if (!userLoading && !user) {
           navigate('/login', { replace: true });
       }
   }, [user, userLoading, navigate]);
-  
+
   useEffect(() => {
-    if (!firestore) return;
+    if (!user) return;
     setProductsLoading(true);
-    const q = query(collection(firestore, 'products'), where('status', '==', 'active'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const prods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAllProducts(prods);
-      setProductsLoading(false);
-    }, (error) => {
-      console.error("Error fetching products: ", error);
-      setProductsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [firestore]);
+
+    // Fetch active products via API
+    const fetchAllProducts = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+        const response = await fetch(`${API_URL}/api/products?status=active`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const prods = data.data || data;
+          setAllProducts(Array.isArray(prods) ? prods : []);
+        }
+      } catch (error) {
+        console.error("Error fetching products: ", error);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+
+    fetchAllProducts();
+  }, [user]);
 
   const favoriteProducts = useMemo(() => {
     if (!user) return [];

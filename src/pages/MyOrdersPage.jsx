@@ -1,5 +1,6 @@
 
 import { useUser } from '@/firebase/auth/use-user';
+import { useUserOrders } from '@/hooks/use-user-orders';
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,44 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { OrdersService } from '@/services/orders/ordersService';
 
 export default function MyOrdersPage() {
   const { user, loading: userLoading } = useUser();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (userLoading) {
-      setLoading(true);
-      return;
-    }
-
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    // Fetch orders from API
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const userOrders = await OrdersService.getUserOrders(user.uid);
-        setOrders(userOrders || []);
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setError(err.message || 'Failed to load orders');
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
-  }, [user, userLoading, navigate]);
+  const { orders, loading, error } = useUserOrders(user?.uid);
 
   const getStatusVariant = (status) => {
     switch (status) {

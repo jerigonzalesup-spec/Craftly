@@ -80,7 +80,9 @@ export function getAuth() {
  */
 export function getStorage() {
   initializeFirebaseAdmin();
-  return admin.storage();
+  // Get default bucket from Firebase project
+  const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.appspot.com`;
+  return admin.storage().bucket(bucketName);
 }
 
 /**

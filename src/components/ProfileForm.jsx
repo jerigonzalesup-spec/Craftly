@@ -13,46 +13,39 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
-import { updateUserProfile, viewRecoveryCodesWithPassword } from '@/firebase/auth/auth';
+import { updateUserProfile } from '@/firebase/auth/auth';
 import { UserProfileService } from '@/services/user/userProfileService';
-import { SORTED_BARANGAYS, isValidBarangay } from '@/lib/dagupanBarangays';
+import { isValidBarangay } from '@/lib/dagupanBarangays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { AlertCircle, Shield, Copy, Check, Download } from 'lucide-react';
+import { BarangayInput } from '@/components/BarangayInput';
+import { RecoveryCodesSection } from '@/components/RecoveryCodesSection';
+import { useBarangaySuggestions } from '@/hooks/useBarangaySuggestions';
+import { useRecoveryCodes } from '@/hooks/useRecoveryCodes';
+import { SCHEMAS, MESSAGES } from '@/lib/formValidation';
 
 const formSchema = z.object({
-  fullName: z.string()
-    .min(2, { message: 'Full name must be 2-50 characters.' })
-    .max(50, 'Full name must be 2-50 characters.')
-    .regex(/^[a-zA-Z\s'-]+$/, 'Full name must contain only letters, spaces, hyphens, and apostrophes. No numbers allowed.'),
+  firstName: SCHEMAS.firstName,
+  lastName: SCHEMAS.lastName,
   email: z.string(),
-  contactNumber: z.string().regex(/^(09|\+639)\d{9}$/, 'Please enter a valid PH mobile number (e.g., 09123456789 or +639123456789).').optional().or(z.literal('')),
-  streetAddress: z.string().optional().or(z.literal('')),
-  barangay: z.string().refine(val => !val || isValidBarangay(val), { message: 'Please select a valid Dagupan barangay from the suggestions' }).optional().or(z.literal('')),
+  contactNumber: SCHEMAS.phoneNumberOptional,
+  streetAddress: SCHEMAS.addressOptional,
+  barangay: SCHEMAS.barangay(isValidBarangay),
   city: z.string().optional().or(z.literal('')),
   postalCode: z.string().optional().or(z.literal('')),
   country: z.string().optional().or(z.literal('')),
-  gcashName: z.string().min(2, 'GCash name must be at least 2 characters.').optional().or(z.literal('')),
-  gcashNumber: z.string().regex(/^(09|\+639)\d{9}$/, 'GCash number must be a valid PH mobile number (e.g., 09123456789 or +639123456789).').optional().or(z.literal('')),
-  // Shop Profile Fields
+  gcashName: z.string().min(2, MESSAGES.gcashNameMin).optional().or(z.literal('')),
+  gcashNumber: SCHEMAS.phoneNumberOptional,
   shopName: z.string().optional().or(z.literal('')),
-  shopAddress: z.string().optional().or(z.literal('')),
-  shopBarangay: z.string().refine(val => !val || isValidBarangay(val), { message: 'Please select a valid Dagupan barangay from the suggestions' }).optional().or(z.literal('')),
+  shopAddress: SCHEMAS.addressOptional,
+  shopBarangay: SCHEMAS.barangay(isValidBarangay),
   shopCity: z.string().optional().or(z.literal('')),
   allowShipping: z.boolean().optional(),
   allowPickup: z.boolean().optional(),
 }).refine(data => {
-  // If street address is provided, it must have house number and letters
   if (data.streetAddress && data.streetAddress.trim().length > 0) {
     const hasNumber = /\d/.test(data.streetAddress);
     const hasLetter = /[a-zA-Z]/.test(data.streetAddress);
@@ -60,10 +53,9 @@ const formSchema = z.object({
   }
   return true;
 }, {
-  message: 'Street address must include both house/building number and street name (e.g., "123 Main Street")',
+  message: MESSAGES.addressInvalid,
   path: ['streetAddress'],
 }).refine(data => {
-  // If shop address is provided, it must have house number and letters
   if (data.shopAddress && data.shopAddress.trim().length > 0) {
     const hasNumber = /\d/.test(data.shopAddress);
     const hasLetter = /[a-zA-Z]/.test(data.shopAddress);
@@ -71,7 +63,7 @@ const formSchema = z.object({
   }
   return true;
 }, {
-  message: 'Shop address must include both house/building number and street name (e.g., "123 Main Street")',
+  message: MESSAGES.addressInvalid,
   path: ['shopAddress'],
 });
 
@@ -80,24 +72,19 @@ export function ProfileForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [profileLoading, setProfileLoading] = useState(false);
-  const [barangayInput, setBarangayInput] = useState('');
-  const [barangaySuggestions, setBarangaySuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [shopBarangayInput, setShopBarangayInput] = useState('');
-  const [shopBarangaySuggestions, setShopBarangaySuggestions] = useState([]);
-  const [showShopSuggestions, setShowShopSuggestions] = useState(false);
-  const [codesRemaining, setCodesRemaining] = useState(0);
-  const [showCodesModal, setShowCodesModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [recoveryCodes, setRecoveryCodes] = useState([]);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [copiedCodes, setCopiedCodes] = useState(false);
-  const [loadingCodes, setLoadingCodes] = useState(false);
+
+  // Barangay state management using custom hooks
+  const barangay = useBarangaySuggestions();
+  const shopBarangay = useBarangaySuggestions();
+
+  // Recovery codes state and handlers
+  const recoveryCodes = useRecoveryCodes(user);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      fullName: '',
+      firstName: '',
+      lastName: '',
       email: '',
       contactNumber: '',
       streetAddress: '',
@@ -126,8 +113,14 @@ export function ProfileForm() {
         const profile = await UserProfileService.getUserProfile(user.uid);
 
         if (profile) {
+          // Split fullName into firstName and lastName
+          const fullName = profile.fullName || user.displayName || '';
+          const [firstName, ...lastNameParts] = fullName.trim().split(' ');
+          const lastName = lastNameParts.join(' ');
+
           form.reset({
-            fullName: profile.fullName || user.displayName || '',
+            firstName: firstName || '',
+            lastName: lastName || '',
             email: profile.email || user.email || '',
             contactNumber: profile.contactNumber || '',
             streetAddress: profile.streetAddress || '',
@@ -144,13 +137,10 @@ export function ProfileForm() {
             allowShipping: profile.allowShipping !== false,
             allowPickup: profile.allowPickup === true,
           });
-          setBarangayInput(profile.barangay || '');
-          setShopBarangayInput(profile.shopBarangay || '');
-          // Set recovery codes remaining count
-          setCodesRemaining(profile.codesRemaining || 0);
+          barangay.setInput(profile.barangay || '');
+          shopBarangay.setInput(profile.shopBarangay || '');
+          recoveryCodes.setCodesRemaining(profile.codesRemaining || 0);
         }
-      } catch (error) {
-        console.warn('Could not load profile:', error.message);
       } finally {
         setProfileLoading(false);
       }
@@ -159,131 +149,15 @@ export function ProfileForm() {
     loadProfile();
   }, [user]);
 
-  // Handle barangay input and filter suggestions
-  const handleBarangayChange = (value) => {
-    setBarangayInput(value);
-    form.setValue('barangay', value);
-
-    if (value.trim().length === 0) {
-      setBarangaySuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const filtered = SORTED_BARANGAYS.filter(barangay =>
-      barangay.toLowerCase().includes(value.toLowerCase())
-    );
-
-    setBarangaySuggestions(filtered.slice(0, 8));
-    setShowSuggestions(true);
-  };
-
-  // Handle selecting a barangay from suggestions
-  const selectBarangay = (barangay) => {
-    setBarangayInput(barangay);
-    form.setValue('barangay', barangay);
-    setShowSuggestions(false);
-  };
-
-  // Handle shop barangay input and filter suggestions
-  const handleShopBarangayChange = (value) => {
-    setShopBarangayInput(value);
-    form.setValue('shopBarangay', value);
-
-    if (value.trim().length === 0) {
-      setShopBarangaySuggestions([]);
-      setShowShopSuggestions(false);
-      return;
-    }
-
-    const filtered = SORTED_BARANGAYS.filter(barangay =>
-      barangay.toLowerCase().includes(value.toLowerCase())
-    );
-
-    setShopBarangaySuggestions(filtered.slice(0, 8));
-    setShowShopSuggestions(true);
-  };
-
-  // Handle selecting a shop barangay from suggestions
-  const selectShopBarangay = (barangay) => {
-    setShopBarangayInput(barangay);
-    form.setValue('shopBarangay', barangay);
-    setShowShopSuggestions(false);
-  };
-
-  // Handle viewing recovery codes with password verification
-  const handleViewRecoveryCodes = async () => {
-    if (!user || !passwordInput.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please enter your password',
-      });
-      return;
-    }
-
-    try {
-      setLoadingCodes(true);
-      const result = await viewRecoveryCodesWithPassword(user.email, passwordInput);
-      setRecoveryCodes(result.recoveryCodes);
-      setShowPasswordModal(false);
-      setShowCodesModal(true);
-      setPasswordInput('');
-    } catch (error) {
-      console.error('Error viewing codes:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to retrieve codes. Check your password and try again.',
-      });
-    } finally {
-      setLoadingCodes(false);
-    }
-  };
-
-  const handleCloseCodesModal = () => {
-    setShowCodesModal(false);
-    setRecoveryCodes([]);
-  };
-
-  const handleCopyCodes = () => {
-    const codesText = recoveryCodes.map(c => c.code).join('\n');
-    navigator.clipboard.writeText(codesText);
-    setCopiedCodes(true);
-    toast({
-      title: 'Copied',
-      description: 'Recovery codes copied to clipboard',
-    });
-    setTimeout(() => setCopiedCodes(false), 2000);
-  };
-
-  const handleDownloadCodes = () => {
-    const codesText = `CRAFTLY RECOVERY CODES\n\nRetrieved: ${new Date().toLocaleString()}\n\nIMPORTANT: Keep these codes safe. Each code can only be used once.\n\n${recoveryCodes.map((c, idx) => `${idx + 1}. ${c.code} ${c.used ? '(USED)' : ''}`).join('\n')}\n\nStore this file securely. Do not share these codes with anyone.`;
-
-    const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(codesText));
-    element.setAttribute('download', 'craftly_recovery_codes.txt');
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-
-    toast({
-      title: 'Downloaded',
-      description: 'Recovery codes downloaded as craftly_recovery_codes.txt',
-    });
-  };
-
   async function onSubmit(values) {
     if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not update profile.' });
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not update profile.' });
+      return;
     }
 
     try {
-      // Build update data - only include non-empty values
       const updateData = {
-        fullName: values.fullName,
+        fullName: `${values.firstName} ${values.lastName}`,
       };
 
       if (values.contactNumber) updateData.contactNumber = values.contactNumber;
@@ -302,23 +176,19 @@ export function ProfileForm() {
       updateData.allowShipping = values.allowShipping;
       updateData.allowPickup = values.allowPickup;
 
-      console.log('📤 Sending update data to backend:', updateData);
-
       // Update profile via API service - this now returns complete profile data
       const responseData = await UserProfileService.updateUserProfile(user.uid, updateData);
 
-      console.log('📥 Received response from backend:', responseData);
-
       // Use the complete response data directly (backend now returns all fields)
       if (responseData) {
-        console.log('🔄 Resetting form with response data:', {
-          gcashName: responseData.gcashName,
-          gcashNumber: responseData.gcashNumber,
-          fullName: responseData.fullName
-        });
+        // Split fullName into firstName and lastName from response
+        const fullNameResponse = responseData.fullName || user.displayName || '';
+        const [firstNameFromResponse, ...lastNamePartsResponse] = fullNameResponse.trim().split(' ');
+        const lastNameFromResponse = lastNamePartsResponse.join(' ');
 
         form.reset({
-          fullName: responseData.fullName || user.displayName || '',
+          firstName: firstNameFromResponse || '',
+          lastName: lastNameFromResponse || '',
           email: responseData.email || user.email || '',
           contactNumber: responseData.contactNumber || '',
           streetAddress: responseData.streetAddress || '',
@@ -335,11 +205,8 @@ export function ProfileForm() {
           allowShipping: responseData.allowShipping !== false,
           allowPickup: responseData.allowPickup === true,
         });
-        setBarangayInput(responseData.barangay || '');
-        setShopBarangayInput(responseData.shopBarangay || '');
-        console.log('✅ Form reset completed');
-      } else {
-        console.warn('⚠️ No data in response from update');
+        barangay.setInput(responseData.barangay || '');
+        shopBarangay.setInput(responseData.shopBarangay || '');
       }
 
       toast({
@@ -347,7 +214,6 @@ export function ProfileForm() {
         description: 'Your profile has been successfully updated.',
       });
     } catch (error) {
-      console.error('❌ Error updating profile:', error);
       let description = 'An error occurred while updating your profile.';
 
       // Parse error message
@@ -408,19 +274,34 @@ export function ProfileForm() {
             {/* Account Information */}
             <div className="space-y-4 pb-6 border-b">
               <h3 className="text-sm font-semibold text-muted-foreground">Account Information</h3>
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Jeremy Cruz" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Jeremy" {...field} className="bg-background border-input" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Cruz" {...field} className="bg-background border-input" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="email"
@@ -518,21 +399,27 @@ export function ProfileForm() {
                       <div>
                         <Input
                           placeholder="e.g., Pantal"
-                          value={barangayInput}
-                          onChange={(e) => handleBarangayChange(e.target.value)}
-                          onFocus={() => barangayInput.trim().length > 0 && setShowSuggestions(true)}
-                          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                          value={barangay.input}
+                          onChange={(e) => {
+                            barangay.handleChange(e.target.value);
+                            field.onChange(e.target.value);
+                          }}
+                          onFocus={() => barangay.input.trim().length > 0 && barangay.setShowSuggestions(true)}
+                          onBlur={() => setTimeout(() => barangay.setShowSuggestions(false), 150)}
                         />
-                        {showSuggestions && barangaySuggestions.length > 0 && (
+                        {barangay.showSuggestions && barangay.suggestions.length > 0 && (
                           <div className="absolute z-10 w-full mt-1 border border-gray-300 bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
-                            {barangaySuggestions.map((barangay, idx) => (
+                            {barangay.suggestions.map((barangayItem, idx) => (
                               <button
                                 key={idx}
                                 type="button"
-                                onClick={() => selectBarangay(barangay)}
+                                onClick={() => {
+                                  const selected = barangay.selectBarangay(barangayItem);
+                                  field.onChange(selected);
+                                }}
                                 className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
                               >
-                                {barangay}
+                                {barangayItem}
                               </button>
                             ))}
                           </div>
@@ -631,21 +518,27 @@ export function ProfileForm() {
                       <div>
                         <Input
                           placeholder="e.g., Pantal"
-                          value={shopBarangayInput}
-                          onChange={(e) => handleShopBarangayChange(e.target.value)}
-                          onFocus={() => shopBarangayInput.trim().length > 0 && setShowShopSuggestions(true)}
-                          onBlur={() => setTimeout(() => setShowShopSuggestions(false), 150)}
+                          value={shopBarangay.input}
+                          onChange={(e) => {
+                            shopBarangay.handleChange(e.target.value);
+                            field.onChange(e.target.value);
+                          }}
+                          onFocus={() => shopBarangay.input.trim().length > 0 && shopBarangay.setShowSuggestions(true)}
+                          onBlur={() => setTimeout(() => shopBarangay.setShowSuggestions(false), 150)}
                         />
-                        {showShopSuggestions && shopBarangaySuggestions.length > 0 && (
+                        {shopBarangay.showSuggestions && shopBarangay.suggestions.length > 0 && (
                           <div className="absolute z-10 w-full mt-1 border border-gray-300 bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
-                            {shopBarangaySuggestions.map((barangay, idx) => (
+                            {shopBarangay.suggestions.map((barangayItem, idx) => (
                               <button
                                 key={idx}
                                 type="button"
-                                onClick={() => selectShopBarangay(barangay)}
+                                onClick={() => {
+                                  const selected = shopBarangay.selectBarangay(barangayItem);
+                                  field.onChange(selected);
+                                }}
                                 className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
                               >
-                                {barangay}
+                                {barangayItem}
                               </button>
                             ))}
                           </div>
@@ -716,57 +609,22 @@ export function ProfileForm() {
             </div>
 
             {/* Recovery Codes Section */}
-            <div className="space-y-4 pb-6 border-b">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-blue-600" />
-                <h3 className="text-sm font-semibold text-muted-foreground">Account Recovery</h3>
-              </div>
-
-              <div className={`p-4 rounded-lg border ${
-                codesRemaining === 0
-                  ? 'bg-red-50 border-red-200'
-                  : codesRemaining <= 2
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-blue-50 border-blue-200'
-              }`}>
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-amber-600" />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Recovery Codes</p>
-                    <p className="text-sm text-gray-700">
-                      You have <span className="font-semibold">{codesRemaining}</span> recovery code{codesRemaining !== 1 ? 's' : ''} remaining.
-                    </p>
-                    {codesRemaining === 0 && (
-                      <p className="text-sm text-red-700">
-                        All your recovery codes have been used. Please contact support to generate new codes.
-                      </p>
-                    )}
-                    {codesRemaining > 0 && codesRemaining <= 2 && (
-                      <p className="text-sm text-amber-700">
-                        You're running low on recovery codes. Consider requesting new codes soon.
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-600 mt-2">
-                      Recovery codes help you regain access to your account if you forget your password. Each code can only be used once.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {codesRemaining === 0 && (
-                <p className="text-xs text-gray-600 bg-gray-50 p-3 rounded">
-                  To request new recovery codes, please contact our support team at support@craftly.com or reply to this account dashboard.
-                </p>
-              )}
-
-              <Button
-                type="button"
-                onClick={() => setShowPasswordModal(true)}
-                className="w-full bg-slate-600 hover:bg-slate-700"
-              >
-                🔐 View Recovery Codes (Requires Password)
-              </Button>
-            </div>
+            <RecoveryCodesSection
+              codesRemaining={recoveryCodes.codesRemaining}
+              showPasswordModal={recoveryCodes.showPasswordModal}
+              setShowPasswordModal={recoveryCodes.setShowPasswordModal}
+              showCodesModal={recoveryCodes.showCodesModal}
+              setShowCodesModal={recoveryCodes.setShowCodesModal}
+              recoveryCodes={recoveryCodes.recoveryCodes}
+              passwordInput={recoveryCodes.passwordInput}
+              setPasswordInput={recoveryCodes.setPasswordInput}
+              copiedCodes={recoveryCodes.copiedCodes}
+              loadingCodes={recoveryCodes.loadingCodes}
+              onViewRecoveryCodes={recoveryCodes.handleViewRecoveryCodes}
+              onCopyCodes={recoveryCodes.handleCopyCodes}
+              onDownloadCodes={recoveryCodes.handleDownloadCodes}
+              onCloseCodesModal={recoveryCodes.handleCloseCodesModal}
+            />
 
             <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
               {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -775,100 +633,6 @@ export function ProfileForm() {
         </Form>
       </CardContent>
     </Card>
-
-    {/* Password Verification Modal */}
-    <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Enter Your Password</DialogTitle>
-          <DialogDescription>
-            We need your password to verify your identity before showing your recovery codes.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Password</label>
-            <Input
-              type="password"
-              placeholder="Enter your password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleViewRecoveryCodes()}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowPasswordModal(false);
-                setPasswordInput('');
-              }}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleViewRecoveryCodes}
-              disabled={loadingCodes}
-              className="flex-1"
-            >
-              {loadingCodes ? 'Verifying...' : 'View Codes'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    {/* Recovery Codes Display Modal */}
-    <Dialog open={showCodesModal} onOpenChange={setShowCodesModal}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Your Recovery Codes</DialogTitle>
-          <DialogDescription>
-            Download or screenshot these codes for your records.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="space-y-2 font-mono text-sm bg-white p-3 rounded border border-blue-100 max-h-48 overflow-y-auto">
-              {recoveryCodes.map((c, index) => (
-                <div key={index} className="text-gray-700">
-                  {index + 1}. {c.code} {c.used && <span className="text-red-600 font-semibold">(USED)</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleCopyCodes}
-              className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors text-sm font-medium"
-            >
-              {copiedCodes ? (
-                <>
-                  <Check className="h-4 w-4" /> Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" /> Copy
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleDownloadCodes}
-              className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors text-sm font-medium text-blue-700"
-            >
-              <Download className="h-4 w-4" /> Download
-            </button>
-          </div>
-          <Button
-            onClick={handleCloseCodesModal}
-            className="w-full"
-          >
-            Done
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  </>
+    </>
   );
 }

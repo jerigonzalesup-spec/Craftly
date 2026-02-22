@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { reauthenticateAndChangePassword } from '@/firebase/auth/auth';
+import { convertApiErrorMessage } from '@/lib/errorMessages';
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -66,27 +67,9 @@ export function ChangePasswordForm() {
       form.reset();
     } catch (error) {
       console.error('Password change error:', error);
-      let description = 'An error occurred while changing your password.';
-
-      // Check error message for specific cases
+      // Use the error message utility to convert technical errors to user-friendly messages
       const errorMsg = error.message || '';
-
-      if (errorMsg.toLowerCase().includes('current password is incorrect')) {
-        description = 'The current password you entered is incorrect.';
-      } else if (errorMsg.toLowerCase().includes('different from current password')) {
-        description = 'New password must be different from your current password.';
-      } else if (errorMsg.toLowerCase().includes('at least 6 characters')) {
-        description = 'New password must be at least 6 characters long.';
-      } else if (errorMsg.toLowerCase().includes('required')) {
-        description = 'Please fill in all required fields.';
-      } else if (errorMsg.toLowerCase().includes('user not found')) {
-        description = 'User account not found.';
-      } else if (errorMsg.toLowerCase().includes('too many')) {
-        description = 'Too many attempts. Please try again later.';
-      } else if (errorMsg.length > 0) {
-        // Use the actual API error message if it's not empty
-        description = errorMsg;
-      }
+      const description = convertApiErrorMessage({ error: errorMsg });
 
       toast({
         variant: 'destructive',

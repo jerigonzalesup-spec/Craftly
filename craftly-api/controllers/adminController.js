@@ -3,9 +3,43 @@ import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 
 const db = getFirestore();
 
+// Server-side admin cache to reduce Firestore quota
+const adminCache = new Map();
+const ADMIN_STATS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (admin data changes less frequently)
+const ADMIN_APPS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes (applications may change more often)
+const ADMIN_PRODUCTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const ADMIN_USERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Cache validation helper
+const isCacheValid = (cacheEntry) => {
+  if (!cacheEntry) return false;
+  const now = new Date().getTime();
+  return now - cacheEntry.timestamp < cacheEntry.ttl;
+};
+
+// Cache invalidation helpers
+const invalidateAdminCache = () => {
+  adminCache.delete('stats');
+  adminCache.delete('applications');
+  adminCache.delete('products');
+  adminCache.delete('users');
+  console.log(`🗑️ Invalidated all admin caches`);
+};
+
+const invalidateStatCache = () => {
+  adminCache.delete('stats');
+  console.log(`🗑️ Invalidated admin stats cache`);
+};
+
+const invalidateApplicationsCache = () => {
+  adminCache.delete('applications');
+  console.log(`🗑️ Invalidated admin applications cache`);
+};
+
 /**
  * GET /api/admin/stats
  * Get admin dashboard statistics
+ * Implements 10-minute server-side caching to reduce Firestore quota
  */
 export const getAdminStats = asyncHandler(async (req, res) => {
   const headerUserId = req.headers['x-user-id'];
@@ -16,13 +50,25 @@ export const getAdminStats = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
   console.log(`👤 Fetching admin stats for admin: ${headerUserId}`);
 
   try {
+    // Check cache first - MAJOR quota saver
+    const cachedStats = adminCache.get('stats');
+    if (isCacheValid({ ...cachedStats, ttl: ADMIN_STATS_CACHE_TTL })) {
+      console.log(`✅ Cache HIT for admin stats (age: ${Math.round((new Date().getTime() - cachedStats.timestamp) / 1000)}s)`);
+      return res.status(200).json({
+        success: true,
+        data: cachedStats.data,
+        fromCache: true,
+      });
+    }
+
+    // Cache MISS - fetch fresh data
     const [usersSnapshot, productsSnapshot, ordersSnapshot] = await Promise.all([
       db.collection('users').get(),
       db.collection('products').get(),
@@ -33,14 +79,25 @@ export const getAdminStats = asyncHandler(async (req, res) => {
       .filter(doc => doc.data().paymentStatus === 'paid')
       .reduce((sum, doc) => sum + (doc.data().totalAmount || 0), 0);
 
+    const statsData = {
+      users: usersSnapshot.size,
+      products: productsSnapshot.size,
+      orders: ordersSnapshot.size,
+      revenue: totalRevenue,
+    };
+
+    // Store in cache
+    adminCache.set('stats', {
+      data: statsData,
+      timestamp: new Date().getTime(),
+      ttl: ADMIN_STATS_CACHE_TTL,
+    });
+
+    console.log(`📦 Cache MISS - Fresh fetch: admin stats (${statsData.users} users, ${statsData.products} products)`);
+
     res.status(200).json({
       success: true,
-      data: {
-        users: usersSnapshot.size,
-        products: productsSnapshot.size,
-        orders: ordersSnapshot.size,
-        revenue: totalRevenue,
-      },
+      data: statsData,
     });
   } catch (error) {
     console.error('❌ Error fetching admin stats:', error);
@@ -51,6 +108,7 @@ export const getAdminStats = asyncHandler(async (req, res) => {
 /**
  * GET /api/admin/applications
  * Get all seller applications
+ * Implements 5-minute server-side caching to reduce Firestore quota
  */
 export const getSellerApplications = asyncHandler(async (req, res) => {
   const headerUserId = req.headers['x-user-id'];
@@ -61,18 +119,39 @@ export const getSellerApplications = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
   console.log(`👤 Fetching seller applications for admin: ${headerUserId}`);
 
   try {
+    // Check cache first
+    const cachedApps = adminCache.get('applications');
+    if (isCacheValid({ ...cachedApps, ttl: ADMIN_APPS_CACHE_TTL })) {
+      console.log(`✅ Cache HIT for seller applications (age: ${Math.round((new Date().getTime() - cachedApps.timestamp) / 1000)}s)`);
+      return res.status(200).json({
+        success: true,
+        data: cachedApps.data,
+        fromCache: true,
+      });
+    }
+
+    // Cache MISS - fetch fresh data
     const applicationsSnapshot = await db.collection('seller-applications').get();
     const applications = applicationsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     }));
+
+    // Store in cache
+    adminCache.set('applications', {
+      data: applications,
+      timestamp: new Date().getTime(),
+      ttl: ADMIN_APPS_CACHE_TTL,
+    });
+
+    console.log(`📦 Cache MISS - Fresh fetch: ${applications.length} seller applications`);
 
     res.status(200).json({
       success: true,
@@ -98,7 +177,7 @@ export const approveApplication = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -107,9 +186,20 @@ export const approveApplication = asyncHandler(async (req, res) => {
   try {
     const batch = db.batch();
 
-    // 1. Update user's role to 'seller'
+    // 1. Update user's role to 'seller' - add 'seller' to roles array
     const userRef = db.collection('users').doc(userId);
-    batch.update(userRef, { role: 'seller' });
+    const userDoc = await userRef.get();
+    const currentRoles = userDoc.data().roles || [userDoc.data().role] || ['buyer'];
+
+    // Add 'seller' role if not already present
+    if (!currentRoles.includes('seller')) {
+      currentRoles.push('seller');
+    }
+
+    batch.update(userRef, {
+      roles: currentRoles,
+      role: 'seller',  // Update legacy field
+    });
 
     // 2. Update application status to 'approved'
     const appRef = db.collection('seller-applications').doc(userId);
@@ -135,6 +225,10 @@ export const approveApplication = asyncHandler(async (req, res) => {
     });
 
     await batch.commit();
+
+    // Invalidate caches - stats and applications have changed
+    invalidateApplicationsCache();
+    invalidateStatCache();
 
     console.log(`✅ Application approved for user: ${userId}`);
 
@@ -163,7 +257,7 @@ export const rejectApplication = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -201,6 +295,9 @@ export const rejectApplication = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate cache - applications list has changed
+    invalidateApplicationsCache();
+
     console.log(`✅ Application rejected for user: ${userId}`);
 
     res.status(200).json({
@@ -216,6 +313,7 @@ export const rejectApplication = asyncHandler(async (req, res) => {
 /**
  * GET /api/admin/products
  * Get all products
+ * Implements 5-minute server-side caching to reduce Firestore quota
  */
 export const getAdminProducts = asyncHandler(async (req, res) => {
   const headerUserId = req.headers['x-user-id'];
@@ -226,13 +324,25 @@ export const getAdminProducts = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
   console.log(`👤 Fetching products for admin: ${headerUserId}`);
 
   try {
+    // Check cache first
+    const cachedProducts = adminCache.get('products');
+    if (isCacheValid({ ...cachedProducts, ttl: ADMIN_PRODUCTS_CACHE_TTL })) {
+      console.log(`✅ Cache HIT for admin products (age: ${Math.round((new Date().getTime() - cachedProducts.timestamp) / 1000)}s)`);
+      return res.status(200).json({
+        success: true,
+        data: cachedProducts.data,
+        fromCache: true,
+      });
+    }
+
+    // Cache MISS - fetch fresh data
     const productsSnapshot = await db.collection('products').get();
     const products = productsSnapshot.docs.map(doc => {
       const data = doc.data();
@@ -248,6 +358,15 @@ export const getAdminProducts = asyncHandler(async (req, res) => {
         createdAt: data.createdAt,
       };
     });
+
+    // Store in cache
+    adminCache.set('products', {
+      data: products,
+      timestamp: new Date().getTime(),
+      ttl: ADMIN_PRODUCTS_CACHE_TTL,
+    });
+
+    console.log(`📦 Cache MISS - Fresh fetch: ${products.length} products`);
 
     res.status(200).json({
       success: true,
@@ -274,7 +393,7 @@ export const archiveProduct = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -326,6 +445,10 @@ export const archiveProduct = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate products cache - products list has changed
+    adminCache.delete('products');
+    console.log(`🗑️ Invalidated admin products cache`);
+
     console.log(`✅ Product archived: ${productId}`);
 
     res.status(200).json({
@@ -352,7 +475,7 @@ export const restoreProduct = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -404,6 +527,10 @@ export const restoreProduct = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate products cache - products list has changed
+    adminCache.delete('products');
+    console.log(`🗑️ Invalidated admin products cache`);
+
     console.log(`✅ Product restored: ${productId}`);
 
     res.status(200).json({
@@ -419,6 +546,7 @@ export const restoreProduct = asyncHandler(async (req, res) => {
 /**
  * GET /api/admin/users
  * Get all users
+ * Implements 5-minute server-side caching to reduce Firestore quota
  */
 export const getAdminUsers = asyncHandler(async (req, res) => {
   const headerUserId = req.headers['x-user-id'];
@@ -429,13 +557,25 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
   console.log(`👤 Fetching users for admin: ${headerUserId}`);
 
   try {
+    // Check cache first
+    const cachedUsers = adminCache.get('users');
+    if (isCacheValid({ ...cachedUsers, ttl: ADMIN_USERS_CACHE_TTL })) {
+      console.log(`✅ Cache HIT for admin users (age: ${Math.round((new Date().getTime() - cachedUsers.timestamp) / 1000)}s)`);
+      return res.status(200).json({
+        success: true,
+        data: cachedUsers.data,
+        fromCache: true,
+      });
+    }
+
+    // Cache MISS - fetch fresh data
     const usersSnapshot = await db.collection('users').get();
     const users = usersSnapshot.docs.map(doc => {
       const data = doc.data();
@@ -448,6 +588,15 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
         createdAt: data.createdAt,
       };
     });
+
+    // Store in cache
+    adminCache.set('users', {
+      data: users,
+      timestamp: new Date().getTime(),
+      ttl: ADMIN_USERS_CACHE_TTL,
+    });
+
+    console.log(`📦 Cache MISS - Fresh fetch: ${users.length} users`);
 
     res.status(200).json({
       success: true,
@@ -474,7 +623,7 @@ export const changeUserRole = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -494,9 +643,27 @@ export const changeUserRole = asyncHandler(async (req, res) => {
     const targetUserData = targetUserDoc.data();
     const batch = db.batch();
 
-    // 1. Update user's role
+    // 1. Update user's role - manage roles array
+    // Users always have 'buyer' as base role, can toggle 'seller' on/off
     const userRef = db.collection('users').doc(userId);
-    batch.update(userRef, { role: newRole });
+    const currentRoles = targetUserData.roles || [targetUserData.role] || ['buyer'];
+
+    // Validate newRole
+    if (!['buyer', 'seller'].includes(newRole)) {
+      throw new ApiError('Admin can only set role to buyer or seller. Admin role requires direct database update.', 400);
+    }
+
+    // Build new roles array
+    // Always keep 'buyer', toggle 'seller' based on newRole
+    let updatedRoles = ['buyer'];
+    if (newRole === 'seller') {
+      updatedRoles.push('seller');
+    }
+
+    batch.update(userRef, {
+      roles: updatedRoles,
+      role: newRole,  // Update legacy field
+    });
 
     // 2. Create notification for the user
     const notificationsColRef = db.collection('users').doc(userId).collection('notifications');
@@ -509,7 +676,7 @@ export const changeUserRole = asyncHandler(async (req, res) => {
       notificationMessage = `An administrator has promoted you to a 'seller'. You can now start listing your products.`;
       notificationLink = '/dashboard/my-products';
     } else if (newRole === 'buyer') {
-      notificationMessage = `An administrator has changed your role to 'buyer'. Your seller privileges have been revoked.`;
+      notificationMessage = `An administrator has revoked your seller privileges. You now have buyer-only access.`;
     }
 
     batch.set(newNotificationRef, {
@@ -524,7 +691,7 @@ export const changeUserRole = asyncHandler(async (req, res) => {
     batch.set(logRef, {
       adminId: headerUserId,
       adminName: adminDoc.data().fullName || adminDoc.data().email,
-      action: `Changed role of ${targetUserData.fullName} from ${targetUserData.role} to ${newRole}.`,
+      action: `Changed role of ${targetUserData.fullName} from ${currentRoles.join(',')} to [${updatedRoles.join(',')}].`,
       target: {
         type: 'user',
         id: userId,
@@ -534,6 +701,9 @@ export const changeUserRole = asyncHandler(async (req, res) => {
     });
 
     await batch.commit();
+
+    // Invalidate stats cache - user roles have changed
+    invalidateStatCache();
 
     console.log(`✅ User role changed: ${userId} to ${newRole}`);
 
@@ -566,7 +736,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -615,6 +785,9 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate stats cache - user count has changed
+    invalidateStatCache();
+
     console.log(`✅ User deleted: ${userId}`);
 
     res.status(200).json({
@@ -641,7 +814,7 @@ export const recoverUser = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -695,6 +868,9 @@ export const recoverUser = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate stats cache - user status has changed
+    invalidateStatCache();
+
     console.log(`✅ User recovered: ${userId}`);
 
     res.status(200).json({
@@ -727,7 +903,7 @@ export const banUser = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -782,6 +958,9 @@ export const banUser = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate stats cache - user status has changed
+    invalidateStatCache();
+
     console.log(`✅ User banned: ${userId}`);
 
     res.status(200).json({
@@ -808,7 +987,7 @@ export const unbanUser = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 
@@ -857,6 +1036,9 @@ export const unbanUser = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Invalidate stats cache - user status has changed
+    invalidateStatCache();
+
     console.log(`✅ User unbanned: ${userId}`);
 
     res.status(200).json({
@@ -882,7 +1064,7 @@ export const getAdminLogs = asyncHandler(async (req, res) => {
 
   // Verify user is admin
   const adminDoc = await db.collection('users').doc(headerUserId).get();
-  if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
     throw new ApiError('Unauthorized - Admin access required', 403);
   }
 

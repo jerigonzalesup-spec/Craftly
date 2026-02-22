@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import {
   collection,
-  onSnapshot,
   query,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useUser } from '@/firebase/auth/use-user';
@@ -44,31 +44,31 @@ export function ProductReviews({ productId, productCreatorId, productName }) {
   useEffect(() => {
     if (!firestore) return;
     setLoading(true);
-    const reviewsColRef = collection(firestore, `products/${productId}/reviews`);
-    const q = query(reviewsColRef, orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
+    // Using one-time fetch instead of real-time listener to prevent Firestore watch target state corruption
+    const fetchReviews = async () => {
+      try {
+        const reviewsColRef = collection(firestore, `products/${productId}/reviews`);
+        const q = query(reviewsColRef, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
         const fetchedReviews = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() })
         );
         setReviews(fetchedReviews);
-        setLoading(false);
-      },
-      (error) => {
+      } catch (error) {
         if (error.code !== 'permission-denied') {
-            console.error('Error fetching reviews:', error);
-            toast({
-              variant: 'destructive',
-              title: 'Could not load reviews',
-            });
+          console.error('Error fetching reviews:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Could not load reviews',
+          });
         }
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchReviews();
   }, [firestore, productId, toast]);
 
   const onSubmit = async (data) => {

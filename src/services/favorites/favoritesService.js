@@ -6,13 +6,17 @@
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Simple cache for favorites per user to reduce quota usage
+const favoritesCache = new Map(); // Map<userId, { data: Set, timestamp }>
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache duration (increased from 3 min to reduce quota)
+
 export class FavoritesService {
   constructor() {
     // No longer needs firestore instance
   }
 
   /**
-   * Fetch user's favorites from API
+   * Fetch user's favorites from API with caching
    * @param {String} userId - User ID
    * @param {Function} onSuccess - Callback when favorites are loaded
    * @param {Function} onError - Callback when error occurs
@@ -24,7 +28,18 @@ export class FavoritesService {
       return () => {};
     }
 
-    // Start the async fetch
+    const now = Date.now();
+    const cached = favoritesCache.get(userId);
+
+    // Check if cache is still valid
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      console.log('❤️ Using cached favorites (age: ' + (now - cached.timestamp) / 1000 + 's)');
+      onSuccess(cached.data);
+      return () => {};
+    }
+
+    // Cache miss or expired, fetch from API
+    console.log('❤️ Fetching favorites from API...');
     fetch(`${API_URL}/api/favorites/${userId}`)
       .then((response) => {
         if (!response.ok) {
@@ -36,6 +51,10 @@ export class FavoritesService {
         if (json.success && Array.isArray(json.data.favorites)) {
           // Convert array to Set like the original service
           const favoriteIds = new Set(json.data.favorites);
+
+          // Update cache
+          favoritesCache.set(userId, { data: favoriteIds, timestamp: now });
+
           onSuccess(favoriteIds);
         } else {
           throw new Error('Invalid API response format');
@@ -79,6 +98,9 @@ export class FavoritesService {
       if (!json.success) {
         throw new Error('Failed to add favorite');
       }
+
+      // Invalidate cache for this user
+      favoritesCache.delete(userId);
     } catch (error) {
       console.error('Error adding favorite:', error);
       throw error;
@@ -112,6 +134,9 @@ export class FavoritesService {
       if (!json.success) {
         throw new Error('Failed to remove favorite');
       }
+
+      // Invalidate cache for this user
+      favoritesCache.delete(userId);
     } catch (error) {
       console.error('Error removing favorite:', error);
       throw error;

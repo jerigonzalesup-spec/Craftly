@@ -5,6 +5,7 @@ import {
   getOrderDetails,
   getSellerOrders,
   updateOrderStatus,
+  updatePaymentStatus,
 } from '../controllers/ordersController.js';
 
 const router = Router();
@@ -38,5 +39,11 @@ router.get('/:userId', getUserOrders);
  * Update order status
  */
 router.post('/:orderId/status', updateOrderStatus);
+
+/**
+ * POST /api/orders/:orderId/payment-status
+ * Update order payment status
+ */
+router.post('/:orderId/payment-status', updatePaymentStatus);
 
 export default router;

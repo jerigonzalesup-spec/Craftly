@@ -1,7 +1,31 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
+import { invalidateProductStatsMultiple } from './productController.js';
+import { invalidateDashboardCache } from './dashboardController.js';
 
 const db = getFirestore();
+
+// Server-side orders cache to reduce Firestore quota
+const ordersCache = new Map();
+const ORDERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - balanced for performance and freshness
+
+// Cache entry structure: { data: orders, timestamp: Date }
+const isCacheValid = (cacheEntry) => {
+  if (!cacheEntry) return false;
+  const now = new Date().getTime();
+  return now - cacheEntry.timestamp < ORDERS_CACHE_TTL;
+};
+
+const invalidateOrdersCache = (userId, sellerId) => {
+  if (userId) {
+    ordersCache.delete(`buyer_${userId}`);
+    console.log(`🗑️ Invalidated buyer orders cache for user: ${userId}`);
+  }
+  if (sellerId) {
+    ordersCache.delete(`seller_${sellerId}`);
+    console.log(`🗑️ Invalidated seller orders cache for seller: ${sellerId}`);
+  }
+};
 
 // List of allowed email domains to prevent typos and fake emails
 const ALLOWED_EMAIL_DOMAINS = [
@@ -193,7 +217,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       shippingAddress,
       deliveryFee,
       paymentMethod,
-      paymentStatus: paymentMethod === 'gcash' ? 'pending' : 'unpaid',
+      paymentStatus: 'paid', // Mark all orders as paid immediately - payment validated in checkout
       receiptImageUrl: receiptImageUrl || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -241,6 +265,18 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     console.log(`✅ Order created: ${orderRef.id}`);
 
+    // Invalidate caches for buyer and all sellers involved
+    invalidateOrdersCache(userId, null); // Invalidate buyer cache
+    sellerIds.forEach(sellerId => {
+      invalidateOrdersCache(null, sellerId); // Invalidate each seller's cache
+      // Invalidate dashboard cache since revenue/stats have changed
+      invalidateDashboardCache(sellerId);
+    });
+
+    // Invalidate stats cache for all products in this order (sales count changed)
+    const productIds = items.map(item => item.productId);
+    invalidateProductStatsMultiple(productIds);
+
     res.status(201).json({
       success: true,
       data: {
@@ -266,32 +302,64 @@ export const createOrder = asyncHandler(async (req, res) => {
  */
 export const getUserOrders = asyncHandler(async (req, res) => {
   const { userId } = req.params;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Default 50, max 100
 
   if (!userId) {
     throw new ApiError('User ID is required', 400);
   }
 
-  console.log(`📦 Fetching orders for user: ${userId}`);
+  console.log(`📦 Fetching orders for user: ${userId} (limit: ${limit})`);
 
   try {
+    // Check cache first (only for first page, no pagination cursor)
+    const cacheKey = `buyer_${userId}`;
+    const cachedData = ordersCache.get(cacheKey);
+    if (isCacheValid(cachedData)) {
+      const age = Math.round((new Date().getTime() - cachedData.timestamp) / 1000);
+      console.log(`✅ Cache HIT for buyer ${userId} orders (age: ${age}s)`);
+      return res.status(200).json({
+        success: true,
+        data: {
+          userId,
+          orders: cachedData.data.slice(0, limit),
+          count: cachedData.data.length,
+          fromCache: true,
+          hasMore: cachedData.data.length > limit,
+        },
+      });
+    }
+
+    // Fetch all orders matching buyerId (simple query, no index needed)
     const ordersSnapshot = await db.collection('orders')
       .where('buyerId', '==', userId)
       .get();
 
-    const orders = ordersSnapshot.docs.map(doc => ({
+    // Convert to array and sort by createdAt descending
+    let orders = ordersSnapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
-    }));
+    })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // Sort by createdAt in descending order (newest first)
-    orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Cache full results
+    ordersCache.set(cacheKey, {
+      data: orders,
+      timestamp: new Date().getTime(),
+    });
+
+    // Return paginated response
+    const paginatedOrders = orders.slice(0, limit);
+    const hasMore = orders.length > limit;
+
+    console.log(`📦 Loaded ${paginatedOrders.length}/${orders.length} orders for user ${userId}`);
 
     res.status(200).json({
       success: true,
       data: {
         userId,
-        orders,
-        count: orders.length,
+        orders: paginatedOrders,
+        count: paginatedOrders.length,
+        total: orders.length,
+        hasMore,
       },
     });
   } catch (error) {
@@ -361,32 +429,68 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
   console.log(`📦 Fetching orders for seller: ${sellerId}`);
 
   try {
-    // Get all orders (we'll filter on backend since Firestore doesn't have nested array queries easily)
-    const ordersSnapshot = await db.collection('orders').get();
+    // Check cache first
+    const cacheKey = `seller_${sellerId}`;
+    const cachedData = ordersCache.get(cacheKey);
+    if (isCacheValid(cachedData)) {
+      console.log(`✅ Cache HIT for seller ${sellerId} orders (age: ${Math.round((new Date().getTime() - cachedData.timestamp) / 1000)}s)`);
+      return res.status(200).json({
+        success: true,
+        data: {
+          sellerId,
+          orders: cachedData.data,
+          count: cachedData.data.length,
+          fromCache: true,
+        },
+      });
+    }
 
-    const sellerOrders = ordersSnapshot.docs
-      .map(doc => ({
+    // Get seller orders - OPTIMIZED: Limit to last 200 orders for performance
+    // Then filter for this seller (Firestore composite query would require index setup)
+    const ordersSnapshot = await db.collection('orders')
+      .orderBy('createdAt', 'desc')
+      .limit(200)
+      .get();
+
+    const sellerOrders = [];
+
+    // Efficient single-pass processing: filter + transform in one operation
+    ordersSnapshot.docs.forEach(doc => {
+      const order = doc.data();
+      
+      // Skip if no items
+      if (!order.items || order.items.length === 0) {
+        return;
+      }
+
+      // Find seller items (early return if none found)
+      const sellerItems = order.items.filter(item => item.sellerId === sellerId);
+      if (sellerItems.length === 0) {
+        return;
+      }
+
+      // Calculate total efficiently 
+      const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      // Add to results with ID
+      sellerOrders.push({
         id: doc.id,
-        ...doc.data(),
-      }))
-      .filter(order => {
-        // Filter for orders that have items from this seller
-        return order.items && order.items.some(item => item.sellerId === sellerId);
-      })
-      .map(order => {
-        // Extract only items from this seller and calculate seller total
-        const sellerItems = order.items.filter(item => item.sellerId === sellerId);
-        const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        ...order,
+        sellerItems,
+        sellerTotal,
+      });
+    });
 
-        return {
-          ...order,
-          sellerItems,
-          sellerTotal,
-        };
-      })
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Already sorted by Firestore query (descending), but ensure consistency
+    sellerOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    console.log(`✅ Found ${sellerOrders.length} orders for seller ${sellerId}`);
+    // Cache the results
+    ordersCache.set(cacheKey, {
+      data: sellerOrders,
+      timestamp: new Date().getTime(),
+    });
+
+    console.log(`📦 Cache MISS - Fresh fetch: ${sellerOrders.length} orders for seller ${sellerId}`);
 
     res.status(200).json({
       success: true,
@@ -456,6 +560,19 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       updatedAt: new Date().toISOString(),
     });
 
+    // Invalidate caches for buyer and all sellers in this order
+    invalidateOrdersCache(orderData.buyerId, null); // Invalidate buyer cache
+    if (orderData.items && Array.isArray(orderData.items)) {
+      const sellerIds = [...new Set(orderData.items.map(item => item.sellerId).filter(id => id))];
+      sellerIds.forEach(sellerId => {
+        invalidateOrdersCache(null, sellerId); // Invalidate each seller's cache
+      });
+
+      // Invalidate stats cache for all products in this order (order status affects sales count)
+      const productIds = orderData.items.map(item => item.productId);
+      invalidateProductStatsMultiple(productIds);
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -472,5 +589,100 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     throw new ApiError(`Failed to update order status: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/orders/:orderId/payment-status
+ * Update order payment status (seller/admin only)
+ */
+export const updatePaymentStatus = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { paymentStatus } = req.body;
+  const userId = req.headers['x-user-id'];
+
+  if (!orderId || !paymentStatus) {
+    throw new ApiError('Order ID and payment status are required', 400);
+  }
+
+  if (!userId) {
+    throw new ApiError('User ID is required', 401);
+  }
+
+  const validPaymentStatuses = ['unpaid', 'pending', 'paid'];
+  if (!validPaymentStatuses.includes(paymentStatus)) {
+    throw new ApiError(`Invalid payment status. Must be one of: ${validPaymentStatuses.join(', ')}`, 400);
+  }
+
+  console.log(`💳 Updating order payment status: ${orderId} -> ${paymentStatus}`);
+
+  try {
+    const orderRef = db.collection('orders').doc(orderId);
+    const orderDoc = await orderRef.get();
+
+    if (!orderDoc.exists) {
+      throw new ApiError('Order not found', 404);
+    }
+
+    const orderData = orderDoc.data();
+
+    // Check if user is admin (via API call to get fresh user data with proper permissions)
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+    const isAdmin = userDoc.exists && (userDoc.data().roles?.includes('admin') || userDoc.data().role === 'admin');
+
+    // Check if user is a seller with items in this order
+    let isSellerInOrder = false;
+    if (orderData.items && Array.isArray(orderData.items)) {
+      isSellerInOrder = orderData.items.some(item => item.sellerId === userId);
+    }
+
+    // Authorization: Only sellers of items in this order or admins can update payment status
+    if (!isSellerInOrder && !isAdmin) {
+      throw new ApiError('Unauthorized - You are not a seller in this order', 403);
+    }
+
+    // If payment is being marked as paid, auto-update order status to processing if pending
+    const updates = {
+      paymentStatus: paymentStatus,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (paymentStatus === 'paid' && orderData.orderStatus === 'pending') {
+      updates.orderStatus = 'processing';
+    }
+
+    await orderRef.update(updates);
+
+    // Invalidate caches for buyer and all sellers in this order
+    invalidateOrdersCache(orderData.buyerId, null); // Invalidate buyer cache
+    if (orderData.items && Array.isArray(orderData.items)) {
+      const sellerIds = [...new Set(orderData.items.map(item => item.sellerId).filter(id => id))];
+      sellerIds.forEach(sellerId => {
+        invalidateOrdersCache(null, sellerId); // Invalidate each seller's cache
+      });
+
+      // Invalidate stats cache for all products in this order (payment status may affect sales count)
+      const productIds = orderData.items.map(item => item.productId);
+      invalidateProductStatsMultiple(productIds);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orderId,
+        paymentStatus,
+        orderStatus: updates.orderStatus || orderData.orderStatus,
+        message: 'Payment status updated successfully',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error updating payment status:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(`Failed to update payment status: ${error.message}`, 500);
   }
 });

@@ -8,7 +8,7 @@ import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AddProductForm } from '@/components/AddProductForm';
 import { EditProductForm } from '@/components/EditProductForm';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { getImageUrl } from '@/lib/image-utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -26,7 +26,7 @@ export default function MyProductsPage() {
 
   useEffect(() => {
     // If user is loading, or logged out, or not a seller, stop.
-    if (userLoading || !user || user.role !== 'seller') {
+    if (userLoading || !user || !user.roles?.includes('seller')) {
       setProducts([]);
       setLoading(false);
       return;
@@ -212,6 +212,12 @@ export default function MyProductsPage() {
               e.preventDefault();
           }
       }}>
+         <DialogHeader>
+           <DialogTitle>{productToEdit ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+           <DialogDescription>
+             {productToEdit ? 'Update your product details' : 'Create a new product to sell'}
+           </DialogDescription>
+         </DialogHeader>
          {productToEdit ? (
            <EditProductForm product={productToEdit} onClose={handleCloseForm} />
          ) : (

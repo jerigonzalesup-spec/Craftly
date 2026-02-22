@@ -18,50 +18,55 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/hooks/use-cart';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirebaseApp } from '@/firebase/provider';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useState, useEffect } from 'react';
-import { Loader2, MapPin, Truck } from 'lucide-react';
+import { Loader2, MapPin, Truck, Check } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OrdersService } from '@/services/orders/ordersService';
 import { UserProfileService } from '@/services/user/userProfileService';
 import { SORTED_BARANGAYS, isValidBarangay } from '@/lib/dagupanBarangays';
+import { uploadProductImage } from '@/lib/imageUpload';
+import { SCHEMAS, MESSAGES, HELPERS } from '@/lib/formValidation';
 
 
 const formSchema = z.object({
     shippingMethod: z.enum(['local-delivery', 'store-pickup']),
     paymentMethod: z.enum(['cod', 'gcash']),
-    fullName: z.string()
-      .min(2, 'Full name must be at least 2 characters.')
-      .regex(/^[a-zA-Z\s'-]+$/, 'Full name must contain only letters, spaces, hyphens, and apostrophes. No numbers allowed.'),
-    email: z.string()
-      .regex(/^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|aol|protonmail|icloud|mail|zoho)\.com$/, 'Please use a valid email from: gmail.com, yahoo.com, outlook.com, hotmail.com, aol.com, protonmail.com, icloud.com, mail.com, or zoho.com'),
-    contactNumber: z.string().regex(/^(09|\+639)\d{9}$/, 'Please enter a valid PH mobile number (e.g., 09123456789 or +639123456789).'),
+    firstName: SCHEMAS.firstName,
+    lastName: SCHEMAS.lastName,
+    email: SCHEMAS.email,
+    contactNumber: SCHEMAS.phoneNumber,
     streetAddress: z.string().optional(),
-    barangay: z.string().refine(val => !val || isValidBarangay(val), { message: 'Please select a valid Dagupan barangay from the suggestions' }).optional(),
+    barangay: z.string().optional(), // Optional here, but validated in refine
     receipt: z.instanceof(File).optional(),
 }).refine(data => {
+    // Validate local delivery requirements
     if (data.shippingMethod === 'local-delivery') {
+        // Barangay is REQUIRED for local delivery
+        if (!data.barangay || data.barangay.trim().length === 0) {
+            return false;
+        }
+        // Validate barangay is from Dagupan
+        if (!isValidBarangay(data.barangay)) {
+            return false;
+        }
+        // Street address is required
         if (!data.streetAddress || data.streetAddress.length < 5) return false;
-        if (!data.barangay || data.barangay.length < 2) return false;
-
-        // Must have both number (house number) and letters (street name)
         const hasNumber = /\d/.test(data.streetAddress);
         const hasLetter = /[a-zA-Z]/.test(data.streetAddress);
         return hasNumber && hasLetter;
     }
     return true;
 }, {
-    message: 'Street address must include house/building number and street name (e.g., "123 Main Street"). Barangay is also required.',
-    path: ['streetAddress'],
+    message: 'Check barangay and street address. Barangay must be a valid Dagupan barangay.',
+    path: ['barangay'],
 }).refine(data => {
     if (data.paymentMethod === 'gcash') {
         return !!data.receipt;
     }
     return true;
 }, {
-    message: 'A receipt is required for GCash payment.',
+    message: MESSAGES.receiptRequired,
     path: ['receipt'],
 });
 
@@ -71,7 +76,6 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
   const { cartItems, cartTotal, clearCart } = useCart();
   const { toast } = useToast();
   const { user } = useUser();
-  const app = useFirebaseApp();
   const [loadingText, setLoadingText] = useState(null);
   const [sellerDetails, setSellerDetails] = useState(null);
   const [loadingSeller, setLoadingSeller] = useState(true);
@@ -85,7 +89,8 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
     defaultValues: {
       shippingMethod: 'local-delivery',
       paymentMethod: 'cod',
-      fullName: user?.displayName || '',
+      firstName: user?.displayName?.split(' ')[0] || '',
+      lastName: user?.displayName?.split(' ').slice(1).join(' ') || '',
       email: user?.email || '',
       contactNumber: '',
       streetAddress: '',
@@ -109,11 +114,17 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
         const profile = await UserProfileService.getUserProfile(user.uid);
 
         if (profile) {
+          // Split fullName into firstName and lastName
+          const fullName = profile.fullName || user.displayName || '';
+          const [firstName, ...lastNameParts] = fullName.trim().split(' ');
+          const lastName = lastNameParts.join(' ');
+
           // Pre-fill form with saved profile data
           form.reset({
             shippingMethod: form.getValues('shippingMethod'),
             paymentMethod: form.getValues('paymentMethod'),
-            fullName: profile.fullName || user.displayName || '',
+            firstName: firstName || '',
+            lastName: lastName || '',
             email: profile.email || user.email || '',
             contactNumber: profile.contactNumber || '',
             streetAddress: profile.streetAddress || '',
@@ -144,8 +155,8 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
     form.setValue('barangay', value);
 
     if (value.trim().length === 0) {
-      setBarangaySuggestions([]);
-      setShowSuggestions(false);
+      setBarangaySuggestions(SORTED_BARANGAYS.slice(0, 10)); // Show first 10 when empty
+      setShowSuggestions(true);
       return;
     }
 
@@ -153,7 +164,7 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
       barangay.toLowerCase().includes(value.toLowerCase())
     );
 
-    setBarangaySuggestions(filtered.slice(0, 8)); // Show max 8 suggestions
+    setBarangaySuggestions(filtered.slice(0, 15)); // Show max 15 suggestions
     setShowSuggestions(true);
   };
 
@@ -230,16 +241,20 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
   }, [watchedPaymentMethod, cartItems, sellerDetails]);
 
 
-  const uploadReceipt = async (file, orderId) => {
-    if (!app) throw new Error("Firebase app not initialized");
-    const storage = getStorage(app);
-    const storageRef = ref(storage, `receipts/${orderId}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
+  const uploadReceipt = async (file) => {
+    if (!file) throw new Error("No file provided");
+
+    // Use the existing imageUpload utility which has proper API URL configuration
+    return await uploadProductImage(file, user.uid);
   }
 
   async function onSubmit(values) {
+    console.log('📋 Form submitted with values:', {
+      shippingMethod: values.shippingMethod,
+      barangay: values.barangay,
+      streetAddress: values.streetAddress,
+    });
+
     setLoadingText('Placing Order...');
     if (cartItems.length === 0) {
         toast({
@@ -249,6 +264,34 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
         });
         setLoadingText(null);
         return;
+    }
+
+    // DEFENSIVE CHECK: Validate barangay for local delivery
+    if (values.shippingMethod === 'local-delivery') {
+        if (!values.barangay || values.barangay.trim().length === 0) {
+            toast({
+                variant: "destructive",
+                title: "Barangay Required",
+                description: "Please select a barangay for delivery.",
+            });
+            form.setError('barangay', {
+                message: 'Barangay is required for local delivery',
+            });
+            setLoadingText(null);
+            return;
+        }
+        if (!isValidBarangay(values.barangay)) {
+            toast({
+                variant: "destructive",
+                title: "Invalid Barangay",
+                description: "Selected barangay is not valid. Please pick from the list.",
+            });
+            form.setError('barangay', {
+                message: 'Invalid barangay - must be from Dagupan',
+            });
+            setLoadingText(null);
+            return;
+        }
     }
 
     if (!user) {
@@ -263,7 +306,7 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
         // Upload receipt if using GCash
         if (values.paymentMethod === 'gcash' && values.receipt) {
             setLoadingText("Uploading Receipt...");
-            receiptImageUrl = await uploadReceipt(values.receipt, `${Date.now()}`);
+            receiptImageUrl = await uploadReceipt(values.receipt);
             setLoadingText("Finalizing Order...");
         }
 
@@ -280,7 +323,7 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
             totalAmount: cartTotal + deliveryFee,
             shippingMethod: values.shippingMethod,
             shippingAddress: {
-                fullName: values.fullName,
+                fullName: `${values.firstName} ${values.lastName}`,
                 email: values.email,
                 contactNumber: values.contactNumber,
                 streetAddress: values.shippingMethod === 'local-delivery' ? values.streetAddress : null,
@@ -297,8 +340,12 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
         // Create order via API
         const result = await OrdersService.createOrder(user.uid, orderData);
 
-        // Success
+        setLoadingText(null);
         form.reset();
+
+        // Set user-specific flag to clear orders cache on next page load
+        localStorage.setItem(`orderJustPlaced_${user.uid}`, 'true');
+
         toast({
             title: "Order Placed!",
             description: "Your order has been successfully submitted.",
@@ -308,19 +355,26 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
 
     } catch (error) {
         console.error("Order submission failed:", error);
-        let description = 'An error occurred while placing your order.';
+        setLoadingText(null);
+        let description = 'An error occurred. Please try again.';
 
         // Parse error message
         const errorMsg = error.message || '';
 
-        if (errorMsg.toLowerCase().includes('must be logged in')) {
+        if (errorMsg.toLowerCase().includes('upload failed with status 500')) {
+          description = 'Receipt upload failed. Please try a different file or try again.';
+        } else if (errorMsg.toLowerCase().includes('upload failed')) {
+          description = 'Receipt upload failed. Check file size (must be < 5MB) and format.';
+        } else if (errorMsg.toLowerCase().includes('file') || errorMsg.toLowerCase().includes('image')) {
+          description = 'Invalid file. Please upload a valid image file.';
+        } else if (errorMsg.toLowerCase().includes('must be logged in')) {
           description = 'You must be logged in to place an order.';
         } else if (errorMsg.toLowerCase().includes('item') || errorMsg.toLowerCase().includes('quantity')) {
           description = 'Invalid item or quantity. Please check your cart.';
         } else if (errorMsg.toLowerCase().includes('shipping')) {
-          description = 'Shipping address is invalid. Please check your details.';
+          description = 'Invalid shipping address. Please check your details.';
         } else if (errorMsg.toLowerCase().includes('payment')) {
-          description = 'Payment method is invalid. Please select a payment method.';
+          description = 'Invalid payment method selected.';
         } else if (errorMsg.toLowerCase().includes('stock')) {
           description = 'Some items are out of stock. Please update your cart.';
         } else if (errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('server')) {
@@ -405,42 +459,67 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
             {watchedShippingMethod === 'local-delivery' && (
               <div className="space-y-4 p-4 border rounded-md animate-in fade-in-0">
                 <h3 className="font-semibold">Shipping Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Jeremy Cruz" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                  <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="firstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="Jeremy" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                  <FormField control={form.control} name="lastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Cruz" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 </div>
-                 <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="09123456789" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                  <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="09123456789" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                </div>
                 <FormField control={form.control} name="streetAddress" render={({ field }) => ( <FormItem><FormLabel>Street Address</FormLabel><FormControl><Input placeholder="123 Main St" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="barangay" render={({ field }) => (
+                    <FormField control={form.control} name="barangay" render={({ field, fieldState }) => (
                         <FormItem className="relative">
-                            <FormLabel>Barangay</FormLabel>
+                            <FormLabel className="text-sm font-medium">
+                              Barangay <span className="text-red-500">*</span>
+                            </FormLabel>
                             <FormControl>
-                                <div>
-                                    <Input
-                                        placeholder="e.g. Pantal"
-                                        value={barangayInput}
-                                        onChange={(e) => handleBarangayChange(e.target.value)}
-                                        onFocus={() => barangayInput.trim().length > 0 && setShowSuggestions(true)}
-                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                                    />
+                                <div className="relative">
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+                                        <Input
+                                            placeholder="Search or select barangay..."
+                                            value={barangayInput}
+                                            onChange={(e) => handleBarangayChange(e.target.value)}
+                                            onFocus={() => {
+                                              if (barangayInput.trim().length > 0 || SORTED_BARANGAYS.length > 0) {
+                                                setShowSuggestions(true);
+                                              }
+                                            }}
+                                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                            className={`pl-9 pr-3 ${fieldState?.error ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                                        />
+                                    </div>
                                     {showSuggestions && barangaySuggestions.length > 0 && (
-                                        <div className="absolute z-10 w-full mt-1 border border-gray-300 bg-white rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                        <div className="absolute z-50 w-full mt-2 border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-md shadow-lg max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                                            <div className="sticky top-0 bg-gray-50 dark:bg-slate-800 px-4 py-2 border-b text-xs text-gray-600 dark:text-gray-300 font-medium">
+                                              {barangaySuggestions.length} barangay{barangaySuggestions.length !== 1 ? 's' : ''} found
+                                            </div>
                                             {barangaySuggestions.map((barangay, idx) => (
                                                 <button
                                                     key={idx}
                                                     type="button"
                                                     onClick={() => selectBarangay(barangay)}
-                                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors"
+                                                    className={`w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors text-foreground flex items-center justify-between ${
+                                                      barangayInput.toLowerCase() === barangay.toLowerCase() 
+                                                        ? 'bg-blue-100 dark:bg-blue-900 border-l-4 border-blue-500' 
+                                                        : ''
+                                                    }`}
                                                 >
-                                                    {barangay}
+                                                    <span className={barangayInput.toLowerCase() === barangay.toLowerCase() ? 'font-semibold text-blue-700 dark:text-blue-200' : ''}>
+                                                      {barangay}
+                                                    </span>
+                                                    {barangayInput.toLowerCase() === barangay.toLowerCase() && (
+                                                      <Check className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>
                                     )}
                                 </div>
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-xs mt-1" />
                         </FormItem>
                     )}/>
                     <FormItem><FormLabel>City</FormLabel><FormControl><Input value="Dagupan" disabled /></FormControl></FormItem>
@@ -451,18 +530,21 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
               <div className="space-y-4 p-4 border rounded-md animate-in fade-in-0">
                   <h3 className="font-semibold">Contact Information</h3>
                   <p className="text-sm text-muted-foreground">We'll use this to notify you when your order is ready for pickup.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="fullName" render={({ field }) => ( <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="Jeremy Cruz" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                      <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                  <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="firstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="Jeremy" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                      <FormField control={form.control} name="lastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Cruz" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                   </div>
-                  <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="09123456789" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="email" render={({ field }) => ( <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                      <FormField control={form.control} name="contactNumber" render={({ field }) => ( <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input placeholder="09123456789" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                  </div>
               </div>
             )}
 
             {/* Seller Shop Address Display */}
             {cartItems.length > 0 && (
-              <div className="space-y-2 p-4 border rounded-md bg-blue-50">
-                <h3 className="font-semibold text-sm">Shop Information</h3>
+              <div className="space-y-4 p-4 border rounded-md animate-in fade-in-0">
+                <h3 className="font-semibold">Shop Information</h3>
                 <div className="space-y-1 text-sm">
                   <p className="text-muted-foreground">You're ordering from:</p>
                   {loadingSeller ? (
@@ -482,12 +564,12 @@ export function CheckoutForm({ shippingMethod, setShippingMethod, deliveryFee })
                       )}
                       <div className="flex gap-2 mt-2">
                         {sellerDetails.allowShipping && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded text-xs">
                             <Truck className="h-3 w-3" /> Shipping Available
                           </span>
                         )}
                         {sellerDetails.allowPickup && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded text-xs">
                             <MapPin className="h-3 w-3" /> Pickup Available
                           </span>
                         )}

@@ -62,18 +62,30 @@ export default function AdminApplicationsPage() {
   const handleApprove = async (application) => {
     if (!adminUser || !adminUser.uid) return;
 
+    // Optimistic update: immediately remove from pending list
+    const originalApplications = applications;
+    setApplications(apps =>
+      apps.map(app => app.id === application.id ? { ...app, status: 'approved' } : app)
+    );
+
     try {
       await AdminService.approveApplication(adminUser.uid, application.id);
       toast({ title: 'Application Approved', description: `${application.shopName} is now a seller.` });
 
-      // Refresh applications list
-      const data = await AdminService.getSellerApplications(adminUser.uid);
-      setApplications(data || []);
+      // Refetch fresh data in background (no await, no blocking)
+      AdminService.getSellerApplications(adminUser.uid).then(data => {
+        setApplications(data || []);
+      }).catch(err => {
+        console.error('Error refetching applications:', err);
+        // If refetch fails, keep optimistic update
+      });
 
       setIsApprovalAlertOpen(false);
       setSelectedAppForApproval(null);
     } catch (error) {
       console.error('Error approving application:', error);
+      // Rollback optimistic update on error
+      setApplications(originalApplications);
       toast({ variant: 'destructive', title: "Error", description: error.message });
     }
   };
@@ -86,18 +98,30 @@ export default function AdminApplicationsPage() {
   const handleReject = async () => {
     if (!adminUser || !selectedApp || !adminUser.uid) return;
 
+    // Optimistic update: immediately update status to rejected
+    const originalApplications = applications;
+    setApplications(apps =>
+      apps.map(app => app.id === selectedApp.id ? { ...app, status: 'rejected', rejectionReason } : app)
+    );
+
     try {
       await AdminService.rejectApplication(adminUser.uid, selectedApp.id, rejectionReason);
       toast({ title: 'Application Rejected' });
 
-      // Refresh applications list
-      const data = await AdminService.getSellerApplications(adminUser.uid);
-      setApplications(data || []);
+      // Refetch fresh data in background (no await, no blocking)
+      AdminService.getSellerApplications(adminUser.uid).then(data => {
+        setApplications(data || []);
+      }).catch(err => {
+        console.error('Error refetching applications:', err);
+        // If refetch fails, keep optimistic update
+      });
 
       setRejectionReason('');
       setSelectedApp(null);
     } catch (error) {
       console.error('Error rejecting application:', error);
+      // Rollback optimistic update on error
+      setApplications(originalApplications);
       toast({ variant: 'destructive', title: "Error", description: error.message });
     }
   };

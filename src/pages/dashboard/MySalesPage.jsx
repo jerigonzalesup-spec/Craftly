@@ -1,6 +1,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
+import { useSellerOrders } from '@/hooks/use-seller-orders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,68 +38,7 @@ export default function MySalesPage() {
   const { user, loading: userLoading } = useUser();
   const { toast } = useToast();
 
-  const [orders, setOrders] = useState([]);
-  const [sellerProducts, setSellerProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (userLoading || !user) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const fetchSellerData = async () => {
-      try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-        // Fetch seller's products
-        try {
-          const productsResponse = await fetch(`${API_URL}/api/products?createdBy=${user.uid}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-User-ID': user.uid,
-            },
-          });
-
-          if (productsResponse.ok) {
-            const productsData = await productsResponse.json();
-            setSellerProducts(productsData.data || []);
-          }
-        } catch (error) {
-          console.error("Error fetching seller products:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not load product data.' });
-        }
-
-        // Fetch seller's orders using the API
-        try {
-          const ordersResponse = await fetch(`${API_URL}/api/orders/seller/${user.uid}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-User-ID': user.uid,
-            },
-          });
-
-          if (!ordersResponse.ok) {
-            throw new Error('Failed to fetch orders');
-          }
-
-          const ordersData = await ordersResponse.json();
-          setOrders(ordersData.data.orders || []);
-        } catch (error) {
-          console.error("Error fetching orders:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not load sales data.' });
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSellerData();
-  }, [user, userLoading, toast]);
+  const { orders, loading: ordersLoading, invalidateCache } = useSellerOrders(user?.uid);
 
   const sellerOrders = useMemo(() => {
     // Orders from API already have sellerItems and sellerTotal calculated
@@ -154,13 +94,9 @@ export default function MySalesPage() {
         throw new Error('Failed to update order status');
       }
 
-      // Update local state optimistically
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId ? { ...order, orderStatus: newStatus } : order
-        )
-      );
-
+      // Invalidate cache immediately after successful update
+      invalidateCache();
+      
       toast({
         title: 'Order Status Updated',
         description: 'Order status has been updated successfully.',
@@ -180,13 +116,16 @@ export default function MySalesPage() {
       case 'pending': return 'secondary';
       case 'processing': return 'outline';
       case 'shipped': return 'default';
-      case 'completed': return 'secondary';
+      case 'delivered': return 'secondary';
+      case 'cancelled': return 'destructive';
       default: return 'secondary';
     }
   };
 
+  // Combine loading states
+  const loading = userLoading || ordersLoading;
 
-  if (loading || userLoading) {
+  if (loading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold mb-8 font-headline">My Sales</h1>
@@ -260,7 +199,8 @@ export default function MySalesPage() {
                               <SelectItem value="pending">Pending</SelectItem>
                               <SelectItem value="processing">Processing</SelectItem>
                               <SelectItem value="shipped">Shipped</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="delivered">Delivered</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground">{getHoursRemaining(order.createdAt)}h remaining</p>

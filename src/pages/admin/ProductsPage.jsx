@@ -86,19 +86,31 @@ export default function AdminProductsPage() {
       return;
     }
 
+    // Optimistic update: immediately mark product as archived
+    const originalProducts = products;
+    setProducts(prods =>
+      prods.map(p => p.id === selectedProduct.id ? { ...p, status: 'archived' } : p)
+    );
+
     try {
       await AdminService.archiveProduct(adminUser.uid, selectedProduct.id, reason);
       toast({ title: 'Product Archived', description: `${selectedProduct.name} has been archived.` });
 
-      // Refresh products list
-      const data = await AdminService.getAdminProducts(adminUser.uid);
-      setProducts(data || []);
+      // Refetch fresh data in background (no await, no blocking)
+      AdminService.getAdminProducts(adminUser.uid).then(data => {
+        setProducts(data || []);
+      }).catch(err => {
+        console.error('Error refetching products:', err);
+        // If refetch fails, keep optimistic update
+      });
 
       setIsArchiveAlertOpen(false);
       setSelectedProduct(null);
       setReason('');
     } catch (error) {
       console.error('Error archiving product:', error);
+      // Rollback optimistic update on error
+      setProducts(originalProducts);
       toast({ variant: 'destructive', title: "Error", description: error.message });
     }
   };
@@ -106,18 +118,30 @@ export default function AdminProductsPage() {
   const handleRestoreAction = async () => {
     if (!adminUser || !adminUser.uid || !selectedProduct) return;
 
+    // Optimistic update: immediately mark product as active (restore)
+    const originalProducts = products;
+    setProducts(prods =>
+      prods.map(p => p.id === selectedProduct.id ? { ...p, status: 'active' } : p)
+    );
+
     try {
       await AdminService.restoreProduct(adminUser.uid, selectedProduct.id);
       toast({ title: 'Product Restored', description: `${selectedProduct.name} is now active.` });
 
-      // Refresh products list
-      const data = await AdminService.getAdminProducts(adminUser.uid);
-      setProducts(data || []);
+      // Refetch fresh data in background (no await, no blocking)
+      AdminService.getAdminProducts(adminUser.uid).then(data => {
+        setProducts(data || []);
+      }).catch(err => {
+        console.error('Error refetching products:', err);
+        // If refetch fails, keep optimistic update
+      });
 
       setIsRestoreAlertOpen(false);
       setSelectedProduct(null);
     } catch (error) {
       console.error('Error restoring product:', error);
+      // Rollback optimistic update on error
+      setProducts(originalProducts);
       toast({ variant: 'destructive', title: "Error", description: error.message });
     }
   };

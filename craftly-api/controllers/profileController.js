@@ -1,6 +1,6 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
-import { SORTED_BARANGAYS, isValidBarangay } from '../lib/dagupanBarangays.js';
+import { isValidBarangay } from '../lib/dagupanBarangays.js';
 import { validateProfileData } from '../lib/validators.js';
 
 const db = getFirestore();

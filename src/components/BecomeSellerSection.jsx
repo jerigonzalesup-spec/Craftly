@@ -1,6 +1,6 @@
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,22 +40,28 @@ export function BecomeSellerSection() {
         return;
     }
     setLoading(true);
-    const appDocRef = doc(firestore, 'seller-applications', user.uid);
-    const unsubscribe = onSnapshot(appDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setApplication({ id: docSnap.id, ...docSnap.data() });
-      } else {
-        setApplication(null);
-      }
-      setLoading(false);
-    }, (error) => {
-        if (error.code !== 'permission-denied') {
-            console.error("Error fetching seller application:", error);
-        }
-        setLoading(false);
-    });
 
-    return () => unsubscribe();
+    // Using one-time fetch instead of real-time listener to prevent Firestore watch target state corruption
+    const fetchApplications = async () => {
+      try {
+        const appDocRef = doc(firestore, 'seller-applications', user.uid);
+        const docSnap = await getDoc(appDocRef);
+
+        if (docSnap.exists()) {
+          setApplication({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          setApplication(null);
+        }
+      } catch (error) {
+        if (error.code !== 'permission-denied') {
+          console.error("Error fetching seller application:", error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApplications();
   }, [user, firestore]);
 
   const form = useForm({

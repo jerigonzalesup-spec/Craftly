@@ -6,6 +6,12 @@
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Cache for orders (45 seconds TTL for faster updates on small project)
+const ordersCache = new Map(); // Map<userId, { data: Array, timestamp }>
+const orderDetailsCache = new Map(); // Map<orderId, { data: Object, timestamp }>
+const ORDERS_CACHE_TTL = 45 * 1000; // 45 seconds for user's orders
+const ORDER_DETAILS_CACHE_TTL = 45 * 1000; // 45 seconds for order details
+
 export class OrdersService {
   /**
    * Create a new order
@@ -40,6 +46,8 @@ export class OrdersService {
       const json = await response.json();
       if (json.success && json.data) {
         console.log('✅ Order created successfully:', json.data.orderId);
+        // Invalidate orders cache for this user (new order added)
+        ordersCache.delete(userId);
         return json.data;
       } else {
         throw new Error('Invalid API response');
@@ -51,7 +59,8 @@ export class OrdersService {
   }
 
   /**
-   * Get user's orders
+   * ⚠️  DEPRECATED: Use `useUserOrders` hook instead (client-side caching)
+   * Get user's orders with caching (2-min cache)
    * @param {String} userId - User ID
    * @returns {Promise<Array>} Array of orders
    */
@@ -60,7 +69,18 @@ export class OrdersService {
       throw new Error('User ID is required');
     }
 
+    const now = Date.now();
+    const cached = ordersCache.get(userId);
+
+    // Check if cache is still valid (2 minutes)
+    if (cached && (now - cached.timestamp) < ORDERS_CACHE_TTL) {
+      console.log('📦 Using cached orders (age: ' + (now - cached.timestamp) / 1000 + 's)');
+      return cached.data;
+    }
+
+    // Cache miss or expired
     try {
+      console.log('📦 Fetching orders from API...');
       const response = await fetch(`${API_URL}/api/orders/${userId}`);
 
       if (!response.ok) {
@@ -69,6 +89,8 @@ export class OrdersService {
 
       const json = await response.json();
       if (json.success && Array.isArray(json.data.orders)) {
+        // Update cache
+        ordersCache.set(userId, { data: json.data.orders, timestamp: now });
         console.log('✅ Orders loaded:', json.data.orders.length);
         return json.data.orders;
       } else {
@@ -81,7 +103,7 @@ export class OrdersService {
   }
 
   /**
-   * Get specific order details
+   * Get specific order details with caching (2-min cache)
    * @param {String} orderId - Order ID
    * @param {String} userId - User ID (for authorization)
    * @returns {Promise<Object>} Order details
@@ -91,7 +113,18 @@ export class OrdersService {
       throw new Error('Order ID is required');
     }
 
+    const now = Date.now();
+    const cached = orderDetailsCache.get(orderId);
+
+    // Check if cache is still valid (2 minutes)
+    if (cached && (now - cached.timestamp) < ORDER_DETAILS_CACHE_TTL) {
+      console.log('📋 Using cached order details (age: ' + (now - cached.timestamp) / 1000 + 's)');
+      return cached.data;
+    }
+
+    // Cache miss or expired
     try {
+      console.log('📋 Fetching order details from API...');
       const response = await fetch(`${API_URL}/api/orders/${orderId}/details`, {
         headers: {
           'x-user-id': userId || '',
@@ -105,6 +138,8 @@ export class OrdersService {
 
       const json = await response.json();
       if (json.success && json.data) {
+        // Update cache
+        orderDetailsCache.set(orderId, { data: json.data, timestamp: now });
         console.log('✅ Order details loaded');
         return json.data;
       } else {
@@ -146,6 +181,9 @@ export class OrdersService {
       const json = await response.json();
       if (json.success && json.data) {
         console.log('✅ Order status updated');
+        // Invalidate caches (order changed)
+        orderDetailsCache.delete(orderId);
+        ordersCache.delete(userId);
         return json.data;
       } else {
         throw new Error('Invalid API response');

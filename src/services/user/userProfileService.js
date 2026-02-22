@@ -7,6 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export class UserProfileService {
   /**
+   * ⚠️  DEPRECATED: Use `useUserProfile` hook instead (client-side caching)
    * Get user profile
    * @param {String} userId - User ID
    * @returns {Promise<Object>} User profile data

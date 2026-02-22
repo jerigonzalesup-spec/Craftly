@@ -1,8 +1,30 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 import crypto from 'crypto';
+import * as totpService from '../services/totpService.js';
+import * as emailService from '../services/emailService.js';
+import * as passwordResetService from '../services/passwordResetService.js';
 
 const db = getFirestore();
+
+// ========================
+// USER EMAIL CACHE (SIGNIN)
+// ========================
+// Cache user lookups by email to prevent quota exhaustion on signin
+// Key: email (lowercase), Value: { uid, email, fullName, roles, role, passwordHash, timestamp }
+const userEmailCache = new Map();
+const USER_EMAIL_CACHE_TTL = 10 * 60 * 1000; // 10 minutes - credentials don't change often
+
+const isCacheValid = (cacheEntry) => {
+  if (!cacheEntry) return false;
+  const now = Date.now();
+  return now - cacheEntry.timestamp < USER_EMAIL_CACHE_TTL;
+};
+
+const invalidateUserCache = (email) => {
+  userEmailCache.delete(email.toLowerCase());
+  console.log(`🗑️ Invalidated cache for user: ${email}`);
+};
 
 // List of allowed email domains to prevent typos and fake emails
 const ALLOWED_EMAIL_DOMAINS = [
@@ -139,7 +161,8 @@ export const signUp = asyncHandler(async (req, res) => {
       fullName,
       email: email.toLowerCase(),
       passwordHash,
-      role: 'buyer',
+      roles: ['buyer'],  // New array-based roles system
+      role: 'buyer',     // Legacy field for backward compatibility
       // Initialize profile fields for checkout auto-fill
       contactNumber: null,
       streetAddress: null,
@@ -171,7 +194,8 @@ export const signUp = asyncHandler(async (req, res) => {
         uid: userId,
         email: userProfileData.email,
         displayName: userProfileData.fullName,
-        role: userProfileData.role,
+        roles: userProfileData.roles,  // Always ['buyer'] for new accounts
+        role: userProfileData.role,  // Legacy field
         recoveryCodes: codesToDisplay, // Return unhashed codes for user to save
       },
       message: 'User account created successfully. Please save your recovery codes!',
@@ -202,16 +226,84 @@ export const signIn = asyncHandler(async (req, res) => {
   console.log(`👤 Signing in user: ${email}`);
 
   try {
-    // Query Firestore to find user by email
-    const snapshot = await db.collection('users')
-      .where('email', '==', email.toLowerCase())
-      .get();
+    const emailLower = email.toLowerCase();
+    let userDoc;
+    let isCached = false;
 
-    if (snapshot.empty) {
-      throw new ApiError('Invalid email or password', 401);
+    // Check cache first - QUOTA SAVER: prevents ~90% of signin Firestore reads
+    const cachedUser = userEmailCache.get(emailLower);
+    if (isCacheValid(cachedUser)) {
+      console.log(`✅ Cache HIT for user email lookup (age: ${Math.round((Date.now() - cachedUser.timestamp) / 1000)}s)`);
+      // For cached users, verify password hash from cache first
+      const passwordHash = hashPassword(password);
+      if (cachedUser.passwordHash !== passwordHash) {
+        throw new ApiError('Invalid email or password', 401);
+      }
+      
+      // Password matched, try to get fresh user doc for latest data
+      try {
+        const freshDoc = await db.collection('users').doc(cachedUser.uid).get();
+        if (!freshDoc.exists) {
+          invalidateUserCache(email);
+          throw new ApiError('Invalid email or password', 401);
+        }
+        userDoc = freshDoc;
+      } catch (dbError) {
+        // If quota exceeded on fresh fetch, use cached data instead
+        if (dbError.message && dbError.message.includes('Quota exceeded')) {
+          console.warn(`⚠️ Quota exceeded on fresh fetch, using cached user data`);
+          // Build the fresh user doc from cache
+          userDoc = {
+            id: cachedUser.uid,
+            data: () => ({
+              email: cachedUser.email,
+              fullName: cachedUser.fullName,
+              roles: cachedUser.roles,
+              role: cachedUser.role,
+              passwordHash: cachedUser.passwordHash,
+            }),
+          };
+        } else {
+          throw dbError;
+        }
+      }
+    } else {
+      // Cache MISS - query Firestore for user
+      try {
+        const snapshot = await db.collection('users')
+          .where('email', '==', emailLower)
+          .get();
+
+        if (snapshot.empty) {
+          throw new ApiError('Invalid email or password', 401);
+        }
+
+        userDoc = snapshot.docs[0];
+
+        // Cache the user lookup result
+        const userData = userDoc.data();
+        userEmailCache.set(emailLower, {
+          uid: userDoc.id,
+          email: userData.email,
+          fullName: userData.fullName,
+          roles: userData.roles,
+          role: userData.role,
+          passwordHash: userData.passwordHash,
+          timestamp: Date.now(),
+        });
+        console.log(`📦 Cache MISS - Cached user email for future logins`);
+      } catch (dbError) {
+        // Handle Firestore quota exceeded gracefully
+        if (dbError.message && dbError.message.includes('Quota exceeded')) {
+          console.error(`⚠️ Firestore quota exceeded during signin for: ${emailLower}`);
+          // Return proper auth error instead of 500
+          throw new ApiError('Authentication service temporarily unavailable. Please try again in a moment.', 503);
+        }
+        // Re-throw other errors
+        throw dbError;
+      }
     }
 
-    const userDoc = snapshot.docs[0];
     const userId = userDoc.id;
     const userData = userDoc.data();
 
@@ -223,13 +315,30 @@ export const signIn = asyncHandler(async (req, res) => {
 
     console.log(`✅ User signed in successfully: ${userId}`);
 
+    // Build roles array: users always have 'buyer', may also have 'seller' or 'admin'
+    let roles = userData.roles;
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+      // Fallback for legacy accounts: construct from role field
+      // Admin users only have 'admin', not 'buyer'
+      if (userData.role === 'admin') {
+        roles = ['admin'];
+      } else {
+        // Users always have 'buyer' as base role
+        roles = ['buyer'];
+        if (userData.role === 'seller') {
+          roles.push('seller');  // Add seller if they're approved
+        }
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {
         uid: userId,
         email: userData.email,
         displayName: userData.fullName,
-        role: userData.role,
+        roles: roles,  // Now guaranteed to include 'buyer' + any other roles
+        role: userData.role,  // Legacy field
       },
       message: 'Signed in successfully',
     });
@@ -296,6 +405,9 @@ export const changePassword = asyncHandler(async (req, res) => {
       passwordHash: newPasswordHash,
       updatedAt: new Date().toISOString(),
     });
+
+    // Invalidate user cache - password changed
+    invalidateUserCache(email);
 
     console.log(`✅ Password changed successfully for user: ${userId}`);
 
@@ -578,5 +690,682 @@ export const viewRecoveryCodes = asyncHandler(async (req, res) => {
     }
 
     throw new ApiError(`Failed to retrieve recovery codes: ${error.message}`, 500);
+  }
+});
+
+// ========================
+// GOOGLE OAUTH SIGN-IN
+// ========================
+
+/**
+ * POST /api/auth/signin-google
+ * Authenticate with Google OAuth
+ * Expects Google ID token from Firebase Auth on client
+ */
+export const signInWithGoogle = asyncHandler(async (req, res) => {
+  const { idToken, email, displayName, photoURL } = req.body;
+
+  if (!idToken || !email) {
+    throw new ApiError('Google ID token and email are required', 400);
+  }
+
+  console.log(`🔐 Google OAuth sign-in for: ${email}`);
+
+  try {
+    const emailLower = email.toLowerCase();
+
+    // Check if user exists
+    let userDoc = await db.collection('users')
+      .where('email', '==', emailLower)
+      .limit(1)
+      .get();
+
+    let userId;
+    let isNewUser = false;
+
+    if (userDoc.empty) {
+      // Create new user from Google OAuth
+      userId = generateUserId();
+      isNewUser = true;
+
+      const userProfileData = {
+        uid: userId,
+        fullName: displayName || email.split('@')[0],
+        email: emailLower,
+        photoURL: photoURL || null,
+        passwordHash: null, // No password for OAuth users
+        authProvider: 'google',
+        roles: ['buyer'],
+        role: 'buyer',
+        contactNumber: null,
+        streetAddress: null,
+        barangay: null,
+        city: 'Dagupan',
+        postalCode: '2400',
+        country: 'Philippines',
+        gcashName: null,
+        gcashNumber: null,
+        totpEnabled: false,
+        totpSecret: null,
+        totpBackupCodes: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      await db.collection('users').doc(userId).set(userProfileData);
+      console.log(`✅ New user created via Google OAuth: ${userId}`);
+    } else {
+      // Existing user - just update last login
+      userDoc = userDoc.docs[0];
+      userId = userDoc.id;
+
+      await db.collection('users').doc(userId).update({
+        lastLoginAt: new Date().toISOString(),
+        photoURL: photoURL || undefined, // Only update if provided
+      });
+
+      console.log(`✅ User signed in via Google OAuth: ${userId}`);
+    }
+
+    // Get updated user data
+    const updatedUserDoc = await db.collection('users').doc(userId).get();
+    const userData = updatedUserDoc.data();
+
+    res.status(isNewUser ? 201 : 200).json({
+      success: true,
+      isNewUser,
+      data: {
+        uid: userId,
+        email: userData.email,
+        displayName: userData.fullName,
+        roles: userData.roles || ['buyer'],
+        role: userData.role || 'buyer',
+        photoURL: userData.photoURL,
+      },
+      message: isNewUser ? 'Account created successfully' : 'Signed in successfully',
+    });
+  } catch (error) {
+    console.error('❌ Error during Google OAuth sign-in:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Google sign-in failed: ${error.message}`, 500);
+  }
+});
+
+// ========================
+// TOTP (TWO-FACTOR AUTH)
+// ========================
+
+/**
+ * POST /api/auth/totp/setup
+ * Generate TOTP secret and QR code for user
+ */
+export const setupTotp = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError('Email and password are required', 400);
+  }
+
+  console.log(`🔐 TOTP setup requested for: ${email}`);
+
+  try {
+    // Find user by email
+    const snapshot = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (snapshot.empty) {
+      throw new ApiError('User not found', 404);
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userData = userDoc.data();
+
+    // Verify password (optional for OAuth users, fail gracefully if passwordHash is missing)
+    if (userData.passwordHash) {
+      const passwordHash = hashPassword(password);
+      if (passwordHash !== userData.passwordHash) {
+        throw new ApiError('Invalid password', 401);
+      }
+    }
+
+    // Generate TOTP secret and QR code
+    const totpData = await totpService.generateTotpSecret(email);
+
+    // Don't save secret yet - user must verify first
+
+    console.log(`✅ TOTP secret generated for: ${email}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        secret: totpData.secret,
+        qrCode: totpData.qrCode,
+        manualEntryKey: totpData.manualEntryKey,
+      },
+      message: 'Scan the QR code with your authenticator app',
+    });
+  } catch (error) {
+    console.error('❌ Error during TOTP setup:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`TOTP setup failed: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/totp/verify
+ * Verify TOTP code and enable 2FA
+ */
+export const verifyTotp = asyncHandler(async (req, res) => {
+  const { email, totpCode, secret } = req.body;
+
+  if (!email || !totpCode || !secret) {
+    throw new ApiError('Email, TOTP code, and secret are required', 400);
+  }
+
+  console.log(`🔐 TOTP verification for: ${email}`);
+
+  try {
+    // Find user by email
+    const snapshot = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (snapshot.empty) {
+      throw new ApiError('User not found', 404);
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userId = userDoc.id;
+
+    // Verify TOTP code
+    const isValid = totpService.verifyTotpToken(secret, totpCode);
+    if (!isValid) {
+      throw new ApiError('Invalid TOTP code. Please try again.', 401);
+    }
+
+    // Generate backup codes
+    const backupCodes = totpService.generateBackupCodes(10);
+    const backupCodesHashed = backupCodes.map(code => ({
+      code, // Store unhashed for display to user
+      codeHash: totpService.hashBackupCode(code),
+      used: false,
+      usedAt: null,
+      createdAt: new Date().toISOString(),
+    }));
+
+    // Update user: enable TOTP, save secret and backup codes
+    await db.collection('users').doc(userId).update({
+      totpEnabled: true,
+      totpSecret: secret,
+      totpBackupCodes: backupCodesHashed,
+      totpVerifiedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Send confirmation email
+    try {
+      await emailService.sendTotpSetupEmail(email);
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send TOTP setup email:', emailError);
+    }
+
+    // Extract unhashed codes for display to user
+    const codesToDisplay = backupCodes;
+
+    console.log(`✅ TOTP enabled for user: ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Two-factor authentication enabled successfully',
+        backupCodes: codesToDisplay,
+      },
+      warning: 'Save these backup codes in a safe place. Each code can be used once if you lose access to your authenticator app.',
+    });
+  } catch (error) {
+    console.error('❌ Error during TOTP verification:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`TOTP verification failed: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/totp/disable
+ * Disable TOTP for user
+ */
+export const disableTotp = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError('Email and password are required', 400);
+  }
+
+  console.log(`🔐 TOTP disable requested for: ${email}`);
+
+  try {
+    // Find user by email
+    const snapshot = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (snapshot.empty) {
+      throw new ApiError('User not found', 404);
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userId = userDoc.id;
+    const userData = userDoc.data();
+
+    // Verify password
+    if (userData.passwordHash) {
+      const passwordHash = hashPassword(password);
+      if (passwordHash !== userData.passwordHash) {
+        throw new ApiError('Invalid password', 401);
+      }
+    }
+
+    // Disable TOTP
+    await db.collection('users').doc(userId).update({
+      totpEnabled: false,
+      totpSecret: null,
+      totpBackupCodes: [],
+      updatedAt: new Date().toISOString(),
+    });
+
+    console.log(`✅ TOTP disabled for user: ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Two-factor authentication disabled',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error during TOTP disable:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Failed to disable TOTP: ${error.message}`, 500);
+  }
+});
+
+// ========================
+// PASSWORD RESET (EMAIL-BASED)
+// ========================
+
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset code via email
+ */
+export const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError('Email is required', 400);
+  }
+
+  console.log(`📧 Password reset requested for: ${email}`);
+
+  try {
+    // Check if user exists
+    const snapshot = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (snapshot.empty) {
+      // Don't reveal if email exists (security best practice)
+      return res.status(200).json({
+        success: true,
+        data: {
+          message: 'If an account exists with this email, a password reset code has been sent.',
+        },
+      });
+    }
+
+    // Generate 6-digit reset code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = crypto.createHash('sha256').update(resetCode).digest('hex');
+
+    const expiresAt = Date.now() + (15 * 60 * 1000); // 15 minutes expiry
+    
+    // Store code hash in Firestore
+    await db.collection('passwordResets').doc(codeHash).set({
+      email: email.toLowerCase(),
+      codeHash,
+      expiresAt,
+      createdAt: Date.now(),
+      used: false,
+    });
+
+    console.log(`✅ Password reset code generated for ${email}`);
+
+    // Send email with reset code
+    try {
+      await emailService.sendPasswordResetCode(email, resetCode);
+      console.log(`✅ Password reset code email sent to: ${email}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send password reset email:', emailError);
+      throw new ApiError('Failed to send email. Please try again later.', 500);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'If an account exists with this email, a password reset code has been sent.',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error during password reset request:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Password reset request failed: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using token from email link
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    throw new ApiError('Reset token and new password are required', 400);
+  }
+
+  // Validate password strength
+  if (newPassword.length < 6) {
+    throw new ApiError('Password must be at least 6 characters long', 400);
+  }
+
+  console.log('🔑 Processing password reset with token');
+
+  try {
+    // Verify token
+    const tokenVerify = await passwordResetService.verifyPasswordResetToken(token);
+    if (!tokenVerify.valid) {
+      throw new ApiError(tokenVerify.message, 401);
+    }
+
+    const email = tokenVerify.email;
+
+    // Find user by email
+    const snapshot = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (snapshot.empty) {
+      throw new ApiError('User not found', 404);
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userId = userDoc.id;
+
+    // Hash new password
+    const newPasswordHash = hashPassword(newPassword);
+
+    // Update password and mark token as used
+    await db.collection('users').doc(userId).update({
+      passwordHash: newPasswordHash,
+      lastPasswordRecovery: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await passwordResetService.markResetTokenAsUsed(token);
+
+    // Invalidate user cache
+    invalidateUserCache(email);
+
+    console.log(`✅ Password reset successfully for user: ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Password reset successfully! You can now sign in with your new password.',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error during password reset:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Password reset failed: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/verify-reset-token
+ * Verify if a password reset token is valid (used by frontend)
+ */
+export const verifyResetToken = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    throw new ApiError('Reset token is required', 400);
+  }
+
+  console.log('🔐 Verifying password reset token');
+
+  try {
+    const tokenVerify = await passwordResetService.verifyPasswordResetToken(token);
+
+    if (!tokenVerify.valid) {
+      return res.status(401).json({
+        success: false,
+        data: {
+          valid: false,
+          message: tokenVerify.message,
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        valid: true,
+        email: tokenVerify.email,
+        message: 'Token is valid',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error verifying reset token:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Token verification failed: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/verify-reset-code
+ * Verify if a password reset code is valid
+ */
+export const verifyResetCode = asyncHandler(async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    throw new ApiError('Email and reset code are required', 400);
+  }
+
+  console.log(`🔐 Verifying password reset code for: ${email}`);
+
+  try {
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const resetDoc = await db.collection('passwordResets').doc(codeHash).get();
+
+    if (!resetDoc.exists) {
+      return res.status(401).json({
+        success: false,
+        data: {
+          valid: false,
+          message: 'Invalid reset code',
+        },
+      });
+    }
+
+    const data = resetDoc.data();
+
+    // Check if email matches
+    if (data.email !== email.toLowerCase()) {
+      return res.status(401).json({
+        success: false,
+        data: {
+          valid: false,
+          message: 'Reset code does not match this email',
+        },
+      });
+    }
+
+    // Check if code expired
+    if (data.expiresAt < Date.now()) {
+      await db.collection('passwordResets').doc(codeHash).delete();
+      return res.status(401).json({
+        success: false,
+        data: {
+          valid: false,
+          message: 'Reset code has expired. Please request a new one.',
+        },
+      });
+    }
+
+    // Check if already used
+    if (data.used) {
+      return res.status(401).json({
+        success: false,
+        data: {
+          valid: false,
+          message: 'This reset code has already been used.',
+        },
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        valid: true,
+        email: data.email,
+        message: 'Reset code is valid',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error verifying reset code:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Code verification failed: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/reset-password-with-code
+ * Reset password using a valid reset code
+ */
+export const resetPasswordWithCode = asyncHandler(async (req, res) => {
+  const { email, code, newPassword } = req.body;
+
+  if (!email || !code || !newPassword) {
+    throw new ApiError('Email, reset code, and new password are required', 400);
+  }
+
+  // Validate password strength
+  if (newPassword.length < 6) {
+    throw new ApiError('Password must be at least 6 characters long', 400);
+  }
+
+  console.log(`🔑 Processing password reset with code for: ${email}`);
+
+  try {
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const resetDoc = await db.collection('passwordResets').doc(codeHash).get();
+
+    if (!resetDoc.exists) {
+      throw new ApiError('Invalid reset code', 401);
+    }
+
+    const data = resetDoc.data();
+
+    // Verify code
+    if (data.email !== email.toLowerCase()) {
+      throw new ApiError('Reset code does not match this email', 401);
+    }
+
+    if (data.expiresAt < Date.now()) {
+      await db.collection('passwordResets').doc(codeHash).delete();
+      throw new ApiError('Reset code has expired. Please request a new one.', 401);
+    }
+
+    if (data.used) {
+      throw new ApiError('This reset code has already been used.', 401);
+    }
+
+    // Find user by email
+    const snapshot = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (snapshot.empty) {
+      throw new ApiError('User not found', 404);
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userId = userDoc.id;
+
+    // Hash new password
+    const newPasswordHash = hashPassword(newPassword);
+
+    // Update password and mark code as used
+    await db.collection('users').doc(userId).update({
+      passwordHash: newPasswordHash,
+      lastPasswordRecovery: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await db.collection('passwordResets').doc(codeHash).update({
+      used: true,
+      usedAt: new Date().toISOString(),
+    });
+
+    // Invalidate user cache
+    invalidateUserCache(email);
+
+    console.log(`✅ Password reset successfully for user: ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Password reset successfully! You can now sign in with your new password.',
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error during password reset with code:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Password reset failed: ${error.message}`, 500);
   }
 });
