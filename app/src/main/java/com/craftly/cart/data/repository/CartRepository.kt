@@ -2,9 +2,7 @@ package com.craftly.cart.data.repository
 
 import com.craftly.cart.data.models.Cart
 import com.craftly.cart.data.models.CartItem
-import com.craftly.cart.data.models.SyncCartRequest
-import com.craftly.cart.data.models.AddToCartRequest
-import com.craftly.cart.data.models.UpdateCartItemRequest
+import com.craftly.cart.data.models.SaveCartRequest
 import com.craftly.cart.data.remote.CartApiService
 import com.craftly.auth.data.local.SharedPreferencesManager
 
@@ -35,46 +33,95 @@ class CartRepository(
         Result.failure(e)
     }
 
-    suspend fun addToCart(product: CartItem): Result<Cart> = try {
-        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
+    suspend fun addToCart(product: CartItem): Result<Cart> {
+        return try {
+            val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val request = AddToCartRequest(
-            productId = product.productId,
-            quantity = product.quantity
-        )
+            // Get current cart, add item, and save full cart
+            val currentCartResult = getCart()
+            if (currentCartResult.isFailure) {
+                return Result.failure(currentCartResult.exceptionOrNull() ?: Exception("Failed to fetch cart"))
+            }
 
-        val cart = apiService.addToCart(userId, request)
-        cachedCart = cart
-        cacheTimestamp = System.currentTimeMillis()
-        Result.success(cart)
-    } catch (e: Exception) {
-        android.util.Log.e("CartRepository", "Error adding to cart: ${e.message}", e)
-        Result.failure(e)
+            val currentCart = currentCartResult.getOrNull() ?: return Result.failure(Exception("Cart is null"))
+            val items = currentCart.data?.items?.toMutableList() ?: mutableListOf()
+
+            // Check if item already exists and update quantity, or add new item
+            val existingIndex = items.indexOfFirst { it.productId == product.productId }
+            if (existingIndex >= 0) {
+                items[existingIndex] = items[existingIndex].copy(quantity = items[existingIndex].quantity + product.quantity)
+            } else {
+                items.add(product)
+            }
+
+            val request = SaveCartRequest(items)
+            val updatedCart = apiService.saveCart(userId, request)
+            cachedCart = updatedCart
+            cacheTimestamp = System.currentTimeMillis()
+            Result.success(updatedCart)
+        } catch (e: Exception) {
+            android.util.Log.e("CartRepository", "Error adding to cart: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
-    suspend fun updateCartItem(itemId: String, quantity: Int): Result<Cart> = try {
-        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
+    suspend fun updateCartItem(itemId: String, quantity: Int): Result<Cart> {
+        return try {
+            val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val request = UpdateCartItemRequest(quantity = quantity)
-        val cart = apiService.updateCartItem(userId, itemId, request)
-        cachedCart = cart
-        cacheTimestamp = System.currentTimeMillis()
-        Result.success(cart)
-    } catch (e: Exception) {
-        android.util.Log.e("CartRepository", "Error updating cart item: ${e.message}", e)
-        Result.failure(e)
+            // Get current cart, update item quantity, and save
+            val currentCartResult = getCart()
+            if (currentCartResult.isFailure) {
+                return Result.failure(currentCartResult.exceptionOrNull() ?: Exception("Failed to fetch cart"))
+            }
+
+            val currentCart = currentCartResult.getOrNull() ?: return Result.failure(Exception("Cart is null"))
+            val items = currentCart.data?.items?.toMutableList() ?: mutableListOf()
+
+            // Find and update item
+            val index = items.indexOfFirst { it.id == itemId }
+            if (index >= 0) {
+                items[index] = items[index].copy(quantity = quantity)
+            } else {
+                return Result.failure(Exception("Item not found in cart"))
+            }
+
+            val request = SaveCartRequest(items)
+            val updatedCart = apiService.saveCart(userId, request)
+            cachedCart = updatedCart
+            cacheTimestamp = System.currentTimeMillis()
+            Result.success(updatedCart)
+        } catch (e: Exception) {
+            android.util.Log.e("CartRepository", "Error updating cart item: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
-    suspend fun removeFromCart(itemId: String): Result<Cart> = try {
-        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
+    suspend fun removeFromCart(itemId: String): Result<Cart> {
+        return try {
+            val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val cart = apiService.removeFromCart(userId, itemId)
-        cachedCart = cart
-        cacheTimestamp = System.currentTimeMillis()
-        Result.success(cart)
-    } catch (e: Exception) {
-        android.util.Log.e("CartRepository", "Error removing from cart: ${e.message}", e)
-        Result.failure(e)
+            // Get current cart, remove item, and save
+            val currentCartResult = getCart()
+            if (currentCartResult.isFailure) {
+                return Result.failure(currentCartResult.exceptionOrNull() ?: Exception("Failed to fetch cart"))
+            }
+
+            val currentCart = currentCartResult.getOrNull() ?: return Result.failure(Exception("Cart is null"))
+            val items = currentCart.data?.items?.toMutableList() ?: mutableListOf()
+
+            // Remove item by id
+            items.removeAll { it.id == itemId }
+
+            val request = SaveCartRequest(items)
+            val updatedCart = apiService.saveCart(userId, request)
+            cachedCart = updatedCart
+            cacheTimestamp = System.currentTimeMillis()
+            Result.success(updatedCart)
+        } catch (e: Exception) {
+            android.util.Log.e("CartRepository", "Error removing from cart: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 
     suspend fun clearCart(): Result<Cart> = try {
@@ -89,16 +136,16 @@ class CartRepository(
         Result.failure(e)
     }
 
-    suspend fun syncCart(items: List<CartItem>): Result<Cart> = try {
+    suspend fun saveCart(items: List<CartItem>): Result<Cart> = try {
         val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val request = SyncCartRequest(items)
-        val cart = apiService.syncCart(userId, request)
+        val request = SaveCartRequest(items)
+        val cart = apiService.saveCart(userId, request)
         cachedCart = cart
         cacheTimestamp = System.currentTimeMillis()
         Result.success(cart)
     } catch (e: Exception) {
-        android.util.Log.e("CartRepository", "Error syncing cart: ${e.message}", e)
+        android.util.Log.e("CartRepository", "Error saving cart: ${e.message}", e)
         Result.failure(e)
     }
 

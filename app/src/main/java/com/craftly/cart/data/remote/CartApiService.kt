@@ -3,43 +3,25 @@ package com.craftly.cart.data.remote
 import com.craftly.cart.data.models.Cart
 import com.craftly.cart.data.models.AddToCartRequest
 import com.craftly.cart.data.models.UpdateCartItemRequest
-import com.craftly.cart.data.models.SyncCartRequest
+import com.craftly.cart.data.models.SaveCartRequest
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface CartApiService {
     @GET("/api/cart/{userId}")
     suspend fun getCart(@Path("userId") userId: String): Cart
 
-    @POST("/api/cart/{userId}")
-    suspend fun addToCart(
-        @Path("userId") userId: String,
-        @Body request: AddToCartRequest
+    @POST("/api/cart")
+    suspend fun saveCart(
+        @Header("x-user-id") userId: String,
+        @Body request: SaveCartRequest
     ): Cart
 
-    @PUT("/api/cart/{userId}/{itemId}")
-    suspend fun updateCartItem(
-        @Path("userId") userId: String,
-        @Path("itemId") itemId: String,
-        @Body request: UpdateCartItemRequest
-    ): Cart
-
-    @DELETE("/api/cart/{userId}/{itemId}")
-    suspend fun removeFromCart(
-        @Path("userId") userId: String,
-        @Path("itemId") itemId: String
-    ): Cart
-
-    @DELETE("/api/cart/{userId}")
-    suspend fun clearCart(@Path("userId") userId: String): Cart
-
-    @POST("/api/cart/{userId}/sync")
-    suspend fun syncCart(
-        @Path("userId") userId: String,
-        @Body request: SyncCartRequest
-    ): Cart
+    @DELETE("/api/cart")
+    suspend fun clearCart(@Header("x-user-id") userId: String): Cart
 }
+
