@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Package, ShoppingCart, DollarSign, ListChecks, CheckCircle, AlertCircle, TrendingUp, Activity } from 'lucide-react';
+import { Users, Package, ShoppingCart, DollarSign, ListChecks, CheckCircle, AlertCircle, TrendingUp, Activity, Wallet } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { useUser } from '@/firebase/auth/use-user';
@@ -68,7 +68,7 @@ function StatCard({ title, value, icon: Icon, loading, trend, bgColor = '#3b82f6
 }
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState({ users: 0, products: 0, orders: 0, revenue: 0 });
+  const [stats, setStats] = useState({ users: 0, products: 0, orders: 0, revenue: 0, adminCommission: 0 });
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
@@ -104,7 +104,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!user || !user.uid) {
         setLoading(false);
-        setStats({ users: 0, products: 0, orders: 0, revenue: 0 });
+        setStats({ users: 0, products: 0, orders: 0, revenue: 0, adminCommission: 0 });
         return;
     }
 
@@ -118,11 +118,12 @@ export default function AdminDashboardPage() {
           products: data.products || 0,
           orders: data.orders || 0,
           revenue: data.revenue || 0,
+          adminCommission: data.adminCommission || 0,
         });
       } catch (error) {
         console.error("Error fetching admin stats:", error);
         setStatsError('Failed to load dashboard statistics. Please refresh the page.');
-        setStats({ users: 0, products: 0, orders: 0, revenue: 0 });
+        setStats({ users: 0, products: 0, orders: 0, revenue: 0, adminCommission: 0 });
       } finally {
         setLoading(false);
       }
@@ -172,7 +173,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatCard
           title="Total Revenue"
           value={`₱${stats.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -204,6 +205,14 @@ export default function AdminDashboardPage() {
           loading={loading}
           bgColor="#8b5cf6"
           trend={`${stats.orders} completed`}
+        />
+        <StatCard
+          title="Admin Commission (5%)"
+          value={`₱${stats.adminCommission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          icon={Wallet}
+          loading={loading}
+          bgColor="#ec4899"
+          trend="From platform revenue"
         />
       </div>
 

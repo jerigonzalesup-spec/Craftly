@@ -1,6 +1,7 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 import { invalidateProductStats } from './productController.js';
+import { convertFirestoreDocToJSON } from '../lib/firestoreUtils.js';
 
 const db = getFirestore();
 
@@ -125,10 +126,12 @@ export const getProductReviews = asyncHandler(async (req, res) => {
       .orderBy('createdAt', 'desc')
       .get();
 
-    const reviews = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const reviews = snapshot.docs.map((doc) => 
+      convertFirestoreDocToJSON({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
 
     console.log(`✅ Found ${reviews.length} reviews for product ${productId}`);
 

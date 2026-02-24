@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Existing -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Amber to Red Gradient (from web design) -->
+    <color name="amber_600">#D97706</color>
+    <color name="amber_700">#B45309</color>
+    <color name="red_500">#EF4444</color>
+    <color name="red_600">#DC2626</color>
+
+    <!-- Grayscale -->
+    <color name="gray_50">#F9FAFB</color>
+    <color name="gray_100">#F3F4F6</color>
+    <color name="gray_200">#E5E7EB</color>
+    <color name="gray_300">#D1D5DB</color>
+    <color name="gray_400">#9CA3AF</color>
+    <color name="gray_500">#6B7280</color>
+    <color name="gray_600">#4B5563</color>
+    <color name="gray_700">#374151</color>
+
+    <!-- Semantic -->
+    <color name="success_green">#10B981</color>
+    <color name="error_red">#EF4444</color>
+    <color name="warning_yellow">#F59E0B</color>
+
+    <!-- Delivery Badges -->
+    <color name="blue_400">#60A5FA</color>
+    <color name="green_400">#4ADE80</color>
+    <color name="yellow_400">#FACC15</color>
+
+    <!-- Dark mode (default) -->
+    <color name="dark_bg_primary">#0F172A</color>
+    <color name="dark_bg_secondary">#1E293B</color>
+    <color name="dark_surface">#334155</color>
+    <color name="dark_text_primary">#F1F5F9</color>
+    <color name="dark_text_secondary">#CBD5E1</color>
+
+    <!-- Bottom Navigation -->
+    <color name="bottom_nav_active">#D97706</color>
+</resources>

@@ -4,6 +4,7 @@ import {
   getUserOrders,
   getOrderDetails,
   getSellerOrders,
+  getSellerDeliveryMethods,
   updateOrderStatus,
   updatePaymentStatus,
 } from '../controllers/ordersController.js';
@@ -21,6 +22,12 @@ router.post('/', createOrder);
  * Get specific order details
  */
 router.get('/:orderId/details', getOrderDetails);
+
+/**
+ * GET /api/orders/seller/:sellerId/delivery-methods
+ * Get seller's delivery methods (allowShipping and allowPickup)
+ */
+router.get('/seller/:sellerId/delivery-methods', getSellerDeliveryMethods);
 
 /**
  * GET /api/orders/seller/:sellerId

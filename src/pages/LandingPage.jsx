@@ -65,9 +65,6 @@ export function LandingPage() {
                 <Button asChild size="lg" className="bg-gradient-to-r from-amber-600 to-red-500 hover:from-amber-700 hover:to-red-600 text-white border-0 shadow-lg shadow-amber-600/50 hover:shadow-amber-600/75 transition-all duration-300">
                     <Link to="/products">Explore the Collection</Link>
                 </Button>
-                 <Button asChild size="lg" variant="secondary" className="text-foreground bg-secondary/80 hover:bg-secondary/60 border border-secondary">
-                    <Link to="/register">Become a Seller</Link>
-                </Button>
             </div>
         </div>
       </section>

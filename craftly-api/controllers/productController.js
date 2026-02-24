@@ -1,6 +1,7 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 import { invalidateDashboardCache } from './dashboardController.js';
+import { convertFirestoreDocToJSON, convertFirestoreDocsToJSON } from '../lib/firestoreUtils.js';
 
 const db = getFirestore();
 
@@ -117,10 +118,13 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
     const snapshot = await query.get();
 
-    const products = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const products = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return convertFirestoreDocToJSON({
+        id: doc.id,
+        ...data,
+      });
+    });
 
     // Cache the fresh results
     productCache.set(cacheKey, {
@@ -189,10 +193,10 @@ export const getProductById = asyncHandler(async (req, res) => {
       throw new ApiError('Product not found', 404);
     }
 
-    const product = {
+    const product = convertFirestoreDocToJSON({
       id: doc.id,
       ...doc.data(),
-    };
+    });
 
     console.log(`✅ Product found: ${product.name}`);
 

@@ -18,10 +18,14 @@ export function useCartViewModel() {
     if (!userLoading && user && user.uid) {
       console.log(`🛒 Loading cart for user ${user.uid}`);
       const cartFromStorage = CartService.loadCartFromStorage(user.uid);
+      console.log(`🛒 Cart loaded from storage:`, {
+        itemCount: cartFromStorage.length,
+        items: cartFromStorage.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity }))
+      });
       setCartItems(cartFromStorage);
     } else if (!userLoading && !user) {
       // User logged out or not loaded
-      console.log('🛒 No user logged in, clearing cart state');
+      console.log('🛒 No user logged in, clearing cart state (localStorage persists for next login)');
       setCartItems([]);
     }
   }, [user?.uid, userLoading]); // Only re-run when user.uid or loading status changes

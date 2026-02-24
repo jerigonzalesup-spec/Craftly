@@ -4,7 +4,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Package, ShoppingCart, DollarSign, AlertTriangle, ListOrdered, TrendingUp, BarChart3, Plus, Eye, Settings, Clock, RefreshCw } from 'lucide-react';
+import { Package, ShoppingCart, DollarSign, AlertTriangle, ListOrdered, TrendingUp, BarChart3, Plus, Eye, Settings, Clock, RefreshCw, TrendingDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ function StatCard({ title, value, icon: Icon, loading }) {
 }
 
 export default function SellerDashboardPage() {
-  const [stats, setStats] = useState({ products: 0, orders: 0, revenue: 0 });
+  const [stats, setStats] = useState({ products: 0, orders: 0, revenue: 0, platformCommission: 0 });
   const [recentSales, setRecentSales] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [salesChartData, setSalesChartData] = useState([]);
@@ -106,7 +106,7 @@ export default function SellerDashboardPage() {
       if (!responseData.data) {
         console.warn('⚠️ No data in response:', responseData);
         setError('No data received from server');
-        setStats({ products: 0, orders: 0, revenue: 0 });
+        setStats({ products: 0, orders: 0, revenue: 0, platformCommission: 0 });
         setRecentSales([]);
         setLowStockProducts([]);
         setSalesChartData([]);
@@ -124,7 +124,7 @@ export default function SellerDashboardPage() {
       console.log(`⚠️ Low Stock (${lowStock?.length || 0}):`, lowStock);
 
       // Set state with proper defaults
-      setStats(statsData || { products: 0, orders: 0, revenue: 0 });
+      setStats(statsData || { products: 0, orders: 0, revenue: 0, platformCommission: 0 });
       setRecentSales(sales || []);
       setLowStockProducts(lowStock || []);
       setOrderStatusCounts(statusCounts || {});
@@ -145,7 +145,7 @@ export default function SellerDashboardPage() {
       console.error("❌ Error fetching seller stats:", err);
       const errorMsg = err.message || 'Failed to load dashboard data';
       setError(errorMsg);
-      setStats({ products: 0, orders: 0, revenue: 0 });
+      setStats({ products: 0, orders: 0, revenue: 0, platformCommission: 0 });
       setRecentSales([]);
       setLowStockProducts([]);
       setSalesChartData([]);
@@ -161,7 +161,7 @@ export default function SellerDashboardPage() {
 
   useEffect(() => {
     if (userLoading || !user) {
-        setStats({ products: 0, orders: 0, revenue: 0 });
+        setStats({ products: 0, orders: 0, revenue: 0, platformCommission: 0 });
         setRecentSales([]);
         setLowStockProducts([]);
         setSalesChartData([]);
@@ -189,11 +189,11 @@ export default function SellerDashboardPage() {
       console.log(`📊 Dashboard update detected for seller ${user.uid}, clearing flag...`);
       localStorage.removeItem(dashboardUpdateKey);
       
-      // Wait 5 seconds for backend cache to clear and Firestore to sync, then refetch
+      // Wait 1 second for backend cache to clear and Firestore to sync, then refetch
       const timer = setTimeout(() => {
-        console.log(`⚡ Refetching dashboard stats after 5s (product/order change)...`);
+        console.log(`⚡ Refetching dashboard stats after 1s (product/order change)...`);
         fetchStats(timePeriod);
-      }, 5000);
+      }, 1000);
       
       return () => clearTimeout(timer);
     }
@@ -296,7 +296,7 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <div className="animate-in fade-in slide-in-from-left duration-500 [animation-delay:0ms]">
           <StatCard
               title="Total Revenue"
@@ -318,6 +318,14 @@ export default function SellerDashboardPage() {
               title="Total Orders"
               value={stats.orders}
               icon={ShoppingCart}
+              loading={loading}
+          />
+        </div>
+        <div className="animate-in fade-in slide-in-from-left duration-500 [animation-delay:300ms]">
+          <StatCard
+              title="Platform Commission (5%)"
+              value={`₱${stats.platformCommission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              icon={TrendingDown}
               loading={loading}
           />
         </div>

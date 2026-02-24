@@ -7,7 +7,7 @@ const db = getFirestore();
 
 // Server-side orders cache to reduce Firestore quota
 const ordersCache = new Map();
-const ORDERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - balanced for performance and freshness
+const ORDERS_CACHE_TTL = 1 * 1000; // 1 second - real-time fresh data for sellers and customers
 
 // Cache entry structure: { data: orders, timestamp: Date }
 const isCacheValid = (cacheEntry) => {
@@ -472,6 +472,12 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
       // Calculate total efficiently 
       const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+      // DEBUG: Log calculation
+      if (sellerTotal === 0) {
+        console.warn(`⚠️ ZERO REVENUE - Order ${doc.id} (sellerId: ${sellerId})`);
+        console.warn(`   sellerItems: ${JSON.stringify(sellerItems)}`);
+      }
+
       // Add to results with ID
       sellerOrders.push({
         id: doc.id,
@@ -503,6 +509,63 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching seller orders:', error);
     throw new ApiError(`Failed to fetch seller orders: ${error.message}`, 500);
+  }
+});
+
+/**
+ * GET /api/orders/seller/:sellerId/delivery-methods
+ * Get seller's delivery methods (allowShipping and allowPickup)
+ */
+export const getSellerDeliveryMethods = asyncHandler(async (req, res) => {
+  const { sellerId } = req.params;
+
+  if (!sellerId) {
+    throw new ApiError('Seller ID is required', 400);
+  }
+
+  console.log(`🚚 Fetching delivery methods for seller: ${sellerId}`);
+
+  try {
+    const sellerRef = db.collection('users').doc(sellerId);
+    const sellerDoc = await sellerRef.get();
+
+    if (!sellerDoc.exists) {
+      console.warn(`⚠️ Seller ${sellerId} not found, returning defaults`);
+      return res.status(200).json({
+        success: true,
+        data: {
+          sellerId,
+          allowShipping: true,
+          allowPickup: false,
+        },
+      });
+    }
+
+    const sellerData = sellerDoc.data();
+    const deliveryMethods = {
+      sellerId,
+      allowShipping: sellerData.allowShipping !== false,
+      allowPickup: sellerData.allowPickup === true,
+    };
+
+    console.log(`✅ Delivery methods fetched for seller ${sellerId}:`, deliveryMethods);
+
+    res.status(200).json({
+      success: true,
+      data: deliveryMethods,
+    });
+  } catch (error) {
+    console.error(`❌ Error fetching delivery methods for seller ${sellerId}:`, error);
+
+    // On error, return safe defaults instead of failing
+    return res.status(200).json({
+      success: true,
+      data: {
+        sellerId,
+        allowShipping: true,
+        allowPickup: false,
+      },
+    });
   }
 });
 

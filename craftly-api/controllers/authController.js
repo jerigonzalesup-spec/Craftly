@@ -212,6 +212,250 @@ export const signUp = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/auth/send-verification-code
+ * Send email verification code to user
+ */
+export const sendEmailVerificationCode = asyncHandler(async (req, res) => {
+  const { email, firstName, lastName, fullName } = req.body;
+
+  if (!email) {
+    throw new ApiError('Email is required', 400);
+  }
+
+  // Validate email format
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    throw new ApiError('Invalid email address', 400);
+  }
+
+  // Validate email domain is in whitelist
+  if (!isValidEmailDomain(email)) {
+    throw new ApiError('Email domain not supported', 400);
+  }
+
+  console.log(`📧 Sending verification code to: ${email}`);
+
+  try {
+    // Check if email already exists
+    const existingUser = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (!existingUser.empty) {
+      throw new ApiError('Email already in use', 400);
+    }
+
+    // Check if full name already exists (prevent duplicate name accounts)
+    if (fullName) {
+      const normalizedFullName = fullName.trim().toLowerCase();
+      const existingNameUser = await db.collection('users')
+        .where('fullName', '==', normalizedFullName)
+        .get();
+
+      if (!existingNameUser.empty) {
+        throw new ApiError('An account with this name already exists. Please use a different name or contact support.', 400);
+      }
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    console.log(`📧 Generated verification code: ${code}, Hash: ${codeHash.substring(0, 16)}...`);
+
+    // Store verification data with 2-minute expiry (using Unix timestamp for reliable Firestore comparison)
+    const expiresAt = Date.now() + (2 * 60 * 1000);
+
+    const emailVerificationRef = db.collection('emailVerifications').doc(email.toLowerCase());
+    await emailVerificationRef.set({
+      email: email.toLowerCase(),
+      codeHash: codeHash,
+      expiresAt: expiresAt,
+      createdAt: Date.now(),
+      verified: false,
+      attempts: 0,
+    });
+
+    // Send email
+    await emailService.sendEmailVerificationCode(email, code);
+
+    console.log(`✅ Verification code sent to: ${email}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Verification code sent to email',
+    });
+  } catch (error) {
+    console.error('❌ Error sending verification code:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Failed to send verification code: ${error.message}`, 500);
+  }
+});
+
+/**
+ * POST /api/auth/verify-email-code
+ * Verify email code and create user account
+ */
+export const verifyEmailCode = asyncHandler(async (req, res) => {
+  const { email, code: rawCode, password, fullName, firstName, lastName } = req.body;
+
+  // Trim and validate code
+  const code = (rawCode || '').toString().trim();
+
+  if (!email || !code) {
+    throw new ApiError('Email and code are required', 400);
+  }
+
+  // Validate code format (must be 6 digits)
+  if (!/^\d{6}$/.test(code)) {
+    throw new ApiError('Verification code must be exactly 6 digits', 400);
+  }
+
+  if (!password || !fullName) {
+    throw new ApiError('Password and fullName are required (or firstName/lastName)', 400);
+  }
+
+  console.log(`🔐 Verifying email code for: ${email}`);
+
+  try {
+    // Verify code from emailVerifications collection
+    const emailVerificationRef = db.collection('emailVerifications').doc(email.toLowerCase());
+    const emailVerificationDoc = await emailVerificationRef.get();
+
+    if (!emailVerificationDoc.exists) {
+      throw new ApiError('No verification code found for this email', 400);
+    }
+
+    const verificationData = emailVerificationDoc.data();
+
+    // Check expiry (compare Unix timestamps for reliable Firestore comparison)
+    if (Date.now() > verificationData.expiresAt) {
+      throw new ApiError('Verification code has expired', 400);
+    }
+
+    // Check attempts (max 5 attempts)
+    if (verificationData.attempts >= 5) {
+      throw new ApiError('Too many failed attempts. Request a new code.', 429);
+    }
+
+    // Verify code
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    console.log(`🔍 Code verification:
+      Received code: ${code}
+      Received hash: ${codeHash.substring(0, 16)}...
+      Stored hash: ${verificationData.codeHash.substring(0, 16)}...
+      Match: ${codeHash === verificationData.codeHash}`);
+
+    if (codeHash !== verificationData.codeHash) {
+      // Increment attempts
+      console.log(`❌ Code mismatch! Incrementing attempts from ${verificationData.attempts} to ${verificationData.attempts + 1}`);
+      await emailVerificationRef.update({ attempts: verificationData.attempts + 1 });
+      throw new ApiError('Invalid verification code', 400);
+    }
+
+    console.log(`✅ Code verified successfully!`);
+
+    // Code is valid - create user account
+    // Validate and normalize fullName (trim whitespace and lowercase for case-insensitive comparison)
+    const normalizedFullName = fullName.trim().toLowerCase();
+
+    if (!/^[a-zA-Z\s'-]+$/.test(fullName)) {
+      throw new ApiError('Full name must contain only letters, spaces, hyphens, and apostrophes', 400);
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      throw new ApiError('Password must be at least 6 characters long', 400);
+    }
+
+    // Validate email doesn't already exist (double-check)
+    const existingUser = await db.collection('users')
+      .where('email', '==', email.toLowerCase())
+      .get();
+
+    if (!existingUser.empty) {
+      throw new ApiError('Email already in use', 400);
+    }
+
+    // Check if full name already exists (prevent duplicate name accounts - uses normalized name for case-insensitive comparison)
+    const existingNameUser = await db.collection('users')
+      .where('fullName', '==', normalizedFullName)
+      .get();
+
+    if (!existingNameUser.empty) {
+      throw new ApiError('An account with this name already exists. Please use a different name or contact support.', 400);
+    }
+
+    // Generate user ID and hash password
+    const userId = generateUserId();
+    const passwordHash = hashPassword(password);
+
+    // Generate recovery codes
+    const recoveryCodes = generateRecoveryCodes();
+
+    // Create user profile
+    const userProfileData = {
+      uid: userId,
+      fullName: normalizedFullName,
+      email: email.toLowerCase(),
+      passwordHash,
+      roles: ['buyer'],
+      role: 'buyer',
+      contactNumber: null,
+      streetAddress: null,
+      barangay: null,
+      city: 'Dagupan',
+      postalCode: '2400',
+      country: 'Philippines',
+      gcashName: null,
+      gcashNumber: null,
+      recoveryCodes: recoveryCodes,
+      recoveryCodesUpdatedAt: new Date().toISOString(),
+      emailVerified: true,
+      verifiedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const userDocRef = db.collection('users').doc(userId);
+    await userDocRef.set(userProfileData);
+
+    // Mark email verification as verified
+    await emailVerificationRef.update({ verified: true, verifiedAt: new Date() });
+
+    console.log(`✅ User created and email verified: ${userId}`);
+
+    // Return user data
+    const codesToDisplay = recoveryCodes.map(c => c.code);
+
+    res.status(201).json({
+      success: true,
+      message: 'Email verified and account created',
+      data: {
+        uid: userId,
+        email: userProfileData.email,
+        displayName: userProfileData.fullName,
+        roles: userProfileData.roles,
+        role: userProfileData.role,
+        recoveryCodes: codesToDisplay,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error verifying email code:', error);
+
+    if (error.status) {
+      throw error;
+    }
+
+    throw new ApiError(`Verification failed: ${error.message}`, 500);
+  }
+});
+
+/**
  * POST /api/auth/signin
  * Authenticate user and return user data with profile
  */

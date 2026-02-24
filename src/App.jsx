@@ -8,7 +8,6 @@ import { CartProvider } from './context/CartProvider';
 import { ThemeProvider } from './context/ThemeContext';
 import Header from './components/Header';
 import { ConditionalFooter } from './components/ConditionalFooter';
-import { RecoveryCodeReminder } from './components/RecoveryCodeReminder';
 import { Toaster } from './components/ui/toaster';
 
 // Page Imports
@@ -51,7 +50,6 @@ function App() {
             <Router>
               <div className="flex min-h-screen flex-col">
                 <Header />
-                <RecoveryCodeReminder />
                 <main className="flex-1">
                   <Routes>
                     {/* Public and User Routes */}

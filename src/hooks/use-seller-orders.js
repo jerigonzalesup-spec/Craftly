@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isCacheValid, getCacheAge, createCacheEntry, invalidateCache } from '@/lib/cacheUtils';
 
-// In-memory cache for seller orders with TTL (5 minutes for consistent performance with backend)
+// In-memory cache for seller orders with TTL (1 second for real-time updates)
 const sellerOrdersCache = new Map();
-const SELLER_ORDERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - matches backend cache
+const SELLER_ORDERS_CACHE_TTL = 1 * 1000; // 1 second - fast fresh data
 
 export function useSellerOrders(sellerId) {
   const [orders, setOrders] = useState([]);
@@ -58,13 +58,24 @@ export function useSellerOrders(sellerId) {
       const data = await response.json();
       const ordersData = data.data?.orders || [];
 
+      // DEBUG: Log orders structure including sellerTotal
+      if (ordersData.length > 0) {
+        console.log(`📋 Seller Orders API Response - First order:`, {
+          orderId: ordersData[0].id,
+          paymentStatus: ordersData[0].paymentStatus,
+          sellerTotal: ordersData[0].sellerTotal,
+          sellerItemsCount: ordersData[0].sellerItems?.length,
+          itemsCount: ordersData[0].items?.length,
+        });
+      }
+
       // Cache the results
       sellerOrdersCache.set(sellerId, createCacheEntry(ordersData));
 
       if (isMountedRef.current) {
         setOrders(ordersData);
         setError(null);
-        console.log(`✅ Loaded ${ordersData.length} seller orders (cached for next 5 min)`);
+        console.log(`✅ Loaded ${ordersData.length} seller orders (cached for next 1 sec)`);
       }
     } catch (err) {
       console.error('Error fetching seller orders:', err);

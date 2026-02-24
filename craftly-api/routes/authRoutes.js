@@ -1,6 +1,8 @@
 import express from 'express';
 import {
   signUp,
+  sendEmailVerificationCode,
+  verifyEmailCode,
   signIn,
   changePassword,
   checkRecoveryCodes,
@@ -32,6 +34,16 @@ router.post('/signin', signIn);
 
 // Sign in with Google OAuth
 router.post('/signin-google', signInWithGoogle);
+
+// ========================
+// Email Verification
+// ========================
+
+// Send verification code to email
+router.post('/send-verification-code', sendEmailVerificationCode);
+
+// Verify email code and create account
+router.post('/verify-email-code', verifyEmailCode);
 
 // Change password (for logged-in users)
 router.post('/change-password', changePassword);

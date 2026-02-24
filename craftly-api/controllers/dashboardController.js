@@ -6,7 +6,7 @@ const db = getFirestore();
 // ===== SERVER-SIDE CACHE FOR DASHBOARD STATS =====
 // Dramatically reduces Firestore quota for repeated dashboard views
 const dashboardCache = new Map(); // Map<userId, { data: stats, timestamp }>
-const DASHBOARD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - balanced for performance and freshness
+const DASHBOARD_CACHE_TTL = 5 * 1000; // 5 seconds - balanced for performance and data freshness
 
 /**
  * Check if dashboard cache is still valid
@@ -105,8 +105,6 @@ export const getSellerStats = asyncHandler(async (req, res) => {
       console.log(`📦 First product:`, sellerProducts[0]);
     }
 
-    const sellerProductIds = new Set(sellerProducts.map(p => p.id));
-
     // 2. Inventory Health Score calculation
     const wellStocked = sellerProducts.filter(p => p.stock > 5).length;
     const lowStock = sellerProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
@@ -115,21 +113,32 @@ export const getSellerStats = asyncHandler(async (req, res) => {
       ? Math.round((wellStocked / sellerProducts.length) * 100)
       : 0;
 
+    console.log(`🏥 Inventory health calculated: Score=${healthScore}%, wellStocked=${wellStocked}, lowStock=${lowStock}, outOfStock=${outOfStock}`);
+
     // 3. Low Stock Products (5 or fewer items) - for alerts
     const lowStockProducts = sellerProducts
       .filter(p => p.stock > 0 && p.stock <= 5)
       .sort((a, b) => a.stock - b.stock);
 
-    // 4. OPTIMIZED: Fetch ONLY orders from the time period we need
-    // Instead of fetching ALL orders, fetch only recent ones
-    // This is a huge quota savings (80% reduction)
-    const maxOrdersToFetch = 300; // Limit documents read - balanced for performance
-    const ordersSnapshot = await db
-      .collection('orders')
-      .where('createdAt', '>=', previousPeriodStart) // FILTER BY DATE - huge optimization
-      .orderBy('createdAt', 'desc')
-      .limit(maxOrdersToFetch) // Additional safety limit
-      .get();
+    console.log(`📋 Orders query params: limit to 300 orders`);
+
+    // 4. OPTIMIZED: Fetch last 300 orders (no index needed) then filter in memory
+    // Much faster than using Firestore composite queries
+    console.log(`🔍 Starting orders fetch: getting last 300 orders`);
+
+    // Use Promise.race to ensure query doesn't hang beyond 8 seconds
+    const ordersSnapshot = await Promise.race([
+      db
+        .collection('orders')
+        .orderBy('createdAt', 'desc')
+        .limit(300)
+        .get(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Orders query timeout - exceeded 8 seconds')), 8000)
+      )
+    ]);
+
+    console.log(`✅ Orders fetched: ${ordersSnapshot.docs.length} total orders`);
 
     let currentPeriodRevenue = 0;
     let previousPeriodRevenue = 0;
@@ -149,9 +158,9 @@ export const getSellerStats = asyncHandler(async (req, res) => {
       let sellerItemsValue = 0;
       let sellerItemCount = 0;
 
-      // Filter items to only include this seller's products
+      // Filter items to only include items SOLD BY this seller (check item.sellerId, not productId)
       order.items.forEach(item => {
-        if (sellerProductIds.has(item.productId)) {
+        if (item.sellerId === userId) {
           const itemValue = item.price * item.quantity;
           sellerItemsValue += itemValue;
           sellerItemCount += item.quantity;
@@ -163,10 +172,9 @@ export const getSellerStats = asyncHandler(async (req, res) => {
 
         // Count revenue and status for current period
         if (orderDate >= currentPeriodStart) {
-          // Only count PAID orders toward revenue
-          if (order.paymentStatus === 'paid') {
-            currentPeriodRevenue += sellerItemsValue;
-          }
+          // Count ALL order statuses for revenue (payment is validated at checkout)
+          // Whether 'paid', 'unpaid', or 'pending', it's a confirmed order
+          currentPeriodRevenue += sellerItemsValue;
 
           // Count order status in current period
           const status = order.orderStatus || 'pending';
@@ -182,12 +190,13 @@ export const getSellerStats = asyncHandler(async (req, res) => {
         }
         // Count revenue for previous period (for goal comparison)
         else if (orderDate >= previousPeriodStart && orderDate < currentPeriodStart) {
-          if (order.paymentStatus === 'paid') {
-            previousPeriodRevenue += sellerItemsValue;
-          }
+          // Count all order revenue regardless of payment status
+          previousPeriodRevenue += sellerItemsValue;
         }
       }
     });
+
+    console.log(`📊 Orders processing complete: sellerOrders=${sellerOrders.length}, currentPeriodRevenue=${currentPeriodRevenue}, orderStatusCounts=`, orderStatusCounts);
 
     // Sort orders by date descending and get top 5 recent for current period
     sellerOrders.sort((a, b) => {
@@ -205,6 +214,7 @@ export const getSellerStats = asyncHandler(async (req, res) => {
         products: sellerProducts.length,
         orders: sellerOrders.length,
         revenue: currentPeriodRevenue,
+        platformCommission: currentPeriodRevenue * 0.05,
       },
       recentSales,
       lowStockProducts: lowStockProducts.slice(0, 5), // Top 5 low stock
@@ -223,13 +233,18 @@ export const getSellerStats = asyncHandler(async (req, res) => {
       },
     };
 
-    // CACHE the results for 10 minutes
+    // CACHE the results for 2 seconds
     dashboardCache.set(cacheKey, { data: dashboardData, timestamp: Date.now() });
 
     console.log(`✅ Dashboard stats retrieved for seller ${userId}`);
     console.log(`💰 Current period revenue: ₱${currentPeriodRevenue}, Previous: ₱${previousPeriodRevenue}`);
-    console.log(`� Stats being sent:`, dashboardData.stats);
-    console.log(`�📚 Documents fetched: ${productsSnapshot.size + ordersSnapshot.size} (cached for 10 min)`);
+    console.log(`📊 Stats being sent:`, dashboardData.stats);    
+    console.log(`📈 Sales Goal:`, dashboardData.salesGoal);
+    console.log(`🏆 Recent Sales: ${dashboardData.recentSales.length} items`);
+    console.log(`⚠️ Low Stock Products: ${dashboardData.lowStockProducts.length} items`);
+    console.log(`📋 Order Status Counts:`, dashboardData.orderStatusCounts);
+    console.log(`📦 Orders processed: ${sellerOrders.length} orders with seller items`);
+    console.log(`📚 Documents fetched: ${productsSnapshot.size + ordersSnapshot.size} (cached for 2s)`);
 
     res.status(200).json({
       success: true,

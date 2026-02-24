@@ -1,14 +1,15 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
+import * as emailService from '../services/emailService.js';
 
 const db = getFirestore();
 
 // Server-side admin cache to reduce Firestore quota
 const adminCache = new Map();
-const ADMIN_STATS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (admin data changes less frequently)
-const ADMIN_APPS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes (applications may change more often)
-const ADMIN_PRODUCTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const ADMIN_USERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const ADMIN_STATS_CACHE_TTL = 1 * 1000; // 1 second (fast admin dashboard)
+const ADMIN_APPS_CACHE_TTL = 2 * 1000; // 2 seconds (quick updates)
+const ADMIN_PRODUCTS_CACHE_TTL = 2 * 1000; // 2 seconds (quick updates)
+const ADMIN_USERS_CACHE_TTL = 2 * 1000; // 2 seconds (quick updates)
 
 // Cache validation helper
 const isCacheValid = (cacheEntry) => {
@@ -79,11 +80,15 @@ export const getAdminStats = asyncHandler(async (req, res) => {
       .filter(doc => doc.data().paymentStatus === 'paid')
       .reduce((sum, doc) => sum + (doc.data().totalAmount || 0), 0);
 
+    // Calculate 5% admin commission on platform revenue
+    const adminCommission = totalRevenue * 0.05;
+
     const statsData = {
       users: usersSnapshot.size,
       products: productsSnapshot.size,
       orders: ordersSnapshot.size,
       revenue: totalRevenue,
+      adminCommission: adminCommission,
     };
 
     // Store in cache
@@ -226,6 +231,18 @@ export const approveApplication = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Send approval email to seller
+    try {
+      const userEmail = userDoc.data().email;
+      const applicationData = (await db.collection('seller-applications').doc(userId).get()).data();
+      const shopName = applicationData?.shopName || 'Your Shop';
+      await emailService.sendSellerApprovalEmail(userEmail, shopName);
+      console.log(`✅ Approval email sent to ${userEmail}`);
+    } catch (emailError) {
+      console.warn(`⚠️ Failed to send approval email to ${userDoc.data().email}:`, emailError.message);
+      // Continue anyway - application was still approved
+    }
+
     // Invalidate caches - stats and applications have changed
     invalidateApplicationsCache();
     invalidateStatCache();
@@ -295,6 +312,22 @@ export const rejectApplication = asyncHandler(async (req, res) => {
 
     await batch.commit();
 
+    // Send rejection email to seller
+    try {
+      const userRef = db.collection('users').doc(userId);
+      const userDocForEmail = await userRef.get();
+      const userEmail = userDocForEmail.data().email;
+      const applicationRef = db.collection('seller-applications').doc(userId);
+      const applicationDocForEmail = await applicationRef.get();
+      const applicationData = applicationDocForEmail.data();
+      const shopName = applicationData?.shopName || 'Your Shop';
+      await emailService.sendSellerRejectionEmail(userEmail, shopName, rejectionReason);
+      console.log(`✅ Rejection email sent to ${userEmail}`);
+    } catch (emailError) {
+      console.warn(`⚠️ Failed to send rejection email:`, emailError.message);
+      // Continue anyway - application was still rejected
+    }
+
     // Invalidate cache - applications list has changed
     invalidateApplicationsCache();
 
@@ -346,7 +379,7 @@ export const getAdminProducts = asyncHandler(async (req, res) => {
     const productsSnapshot = await db.collection('products').get();
     const products = productsSnapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      return convertFirestoreDocToJSON({
         id: doc.id,
         name: data.name,
         price: data.price,
@@ -356,7 +389,7 @@ export const getAdminProducts = asyncHandler(async (req, res) => {
         archiveReason: data.archiveReason || '',
         images: data.images || [],
         createdAt: data.createdAt,
-      };
+      });
     });
 
     // Store in cache

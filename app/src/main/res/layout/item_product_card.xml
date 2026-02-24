@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="@color/dark_bg_secondary"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="0dp">
+
+        <!-- Product Image with Overlay -->
+        <FrameLayout
+            android:id="@+id/imageContainer"
+            android:layout_width="0dp"
+            android:layout_height="160dp"
+            android:background="@color/dark_bg_primary"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/productImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Product image"
+                android:scaleType="centerCrop"
+                tools:src="@color/dark_bg_primary" />
+
+            <!-- Category Badge - Top Left -->
+            <TextView
+                android:id="@+id/categoryLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="10dp"
+                android:background="@drawable/category_chip_background"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp"
+                android:text="Category"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                tools:text="Crafts" />
+
+            <!-- Favorite Button - Top Right -->
+            <ImageButton
+                android:id="@+id/favoriteButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
+                android:background="@drawable/card_background"
+                android:contentDescription="Add to favorites"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_heart"
+                app:tint="@color/white"
+                android:padding="8dp" />
+        </FrameLayout>
+
+        <!-- Product Details Container -->
+        <LinearLayout
+            android:id="@+id/detailsContainer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/imageContainer">
+
+            <!-- Product Name -->
+            <TextView
+                android:id="@+id/productName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:lines="2"
+                android:text="Product Name"
+                android:textColor="@color/dark_text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp"
+                tools:text="Hand-crafted Ceramic Vase" />
+
+            <!-- Seller Name -->
+            <TextView
+                android:id="@+id/sellerName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Shop Name"
+                android:textColor="@color/dark_text_secondary"
+                android:textSize="11sp"
+                android:layout_marginBottom="4dp"
+                tools:text="Artisan Crafts Co." />
+
+            <!-- Rating with Sales Count -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:id="@+id/ratingText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="★ 4.5"
+                    android:textColor="@color/yellow_400"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="★ 4.5 (23)" />
+
+                <TextView
+                    android:id="@+id/salesCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="45 sold"
+                    android:textColor="@color/dark_text_secondary"
+                    android:textSize="10sp"
+                    tools:text="125 sold" />
+            </LinearLayout>
+
+            <!-- Stock Status (Inline with Price) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/stockStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="10 in stock"
+                    android:textColor="@color/dark_text_secondary"
+                    android:textSize="10sp"
+                    tools:text="25 in stock" />
+
+                <!-- Price (Right aligned, bold) -->
+                <TextView
+                    android:id="@+id/productPrice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₱ 1,200"
+                    android:textColor="@color/amber_600"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="₱ 1,200" />
+            </LinearLayout>
+
+            <!-- Delivery Badges -->
+            <LinearLayout
+                android:id="@+id/badgesContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:id="@+id/shippingBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/card_background"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:text="🚚 Ship"
+                    android:textColor="@color/blue_400"
+                    android:textSize="10sp"
+                    android:layout_marginEnd="6dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/pickupBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/card_background"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:text="🏪 Pickup"
+                    android:textColor="@color/green_400"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Add to Cart Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/addToCartButton"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="Add to Cart"
+                android:textSize="13sp"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/amber_600"
+                app:cornerRadius="8dp" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.cardview.widget.CardView>

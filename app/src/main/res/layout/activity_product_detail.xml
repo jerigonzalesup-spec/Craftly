@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/dark_bg_primary"
+    tools:context=".products.presentation.ui.ProductDetailActivity">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:background="@color/dark_bg_secondary"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/backButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="←"
+            android:textSize="20sp"
+            app:backgroundTint="@color/dark_bg_primary"
+            app:cornerRadius="8dp"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Product Details"
+            android:textColor="@color/dark_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Scrollable Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Image Carousel Container -->
+            <FrameLayout
+                android:id="@+id/productContent"
+                android:layout_width="match_parent"
+                android:layout_height="300dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="16dp"
+                android:visibility="visible">
+
+                <ImageView
+                    android:id="@+id/productImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Product Image" />
+
+                <!-- Favorite Heart Button - Top Right -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/favoriteButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="12dp"
+                    android:text="♡"
+                    android:textSize="28sp"
+                    android:padding="0dp"
+                    app:backgroundTint="@color/white"
+                    app:cornerRadius="24dp"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+                <!-- Carousel Controls -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_gravity="center"
+                    android:layout_marginBottom="16dp"
+                    android:gravity="center">
+
+                    <Button
+                        android:id="@+id/prevImageButton"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:text="‹"
+                        android:textSize="20sp" />
+
+                    <Space
+                        android:layout_width="24dp"
+                        android:layout_height="0dp" />
+
+                    <Button
+                        android:id="@+id/nextImageButton"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:text="›"
+                        android:textSize="20sp" />
+                </LinearLayout>
+
+                <!-- Image Counter -->
+                <TextView
+                    android:id="@+id/imageCounter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="12dp"
+                    android:background="@drawable/badge_background"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    tools:text="1/5" />
+            </FrameLayout>
+
+            <!-- Loading State -->
+            <ProgressBar
+                android:id="@+id/loadingProgressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginVertical="32dp"
+                android:visibility="gone" />
+
+            <!-- Product Info -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="visible">
+
+                <TextView
+                    android:id="@+id/productName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_text_primary"
+                    android:layout_marginBottom="8dp"
+                    tools:text="Handcrafted Ceramic Vase" />
+
+                <!-- Rating and Review Count -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/ratingText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:textColor="@color/yellow_400"
+                        android:layout_marginEnd="16dp"
+                        tools:text="★ 4.5 (23 reviews)" />
+
+                    <TextView
+                        android:id="@+id/salesCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:textColor="@color/dark_text_secondary"
+                        tools:text="425 sold" />
+                </LinearLayout>
+
+                <!-- Category and Seller -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:id="@+id/productCategory"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/category_chip_background"
+                        android:textColor="@color/white"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:textSize="12sp"
+                        android:layout_marginEnd="8dp"
+                        android:gravity="center"
+                        tools:text="Ceramics" />
+
+                    <TextView
+                        android:id="@+id/sellerName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:textColor="@color/dark_text_secondary"
+                        tools:text="Seller: John Doe" />
+                </LinearLayout>
+
+                <!-- Price -->
+                <TextView
+                    android:id="@+id/productPrice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/amber_600"
+                    android:layout_marginBottom="16dp"
+                    tools:text="₱ 1,200" />
+
+                <!-- Delivery Badges -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:id="@+id/shippingBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🚚 Shipping"
+                        android:textColor="@color/blue_400"
+                        android:background="@drawable/card_background"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:layout_marginEnd="8dp"
+                        android:visibility="gone"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/pickupBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🏪 Pick up"
+                        android:textColor="@color/green_400"
+                        android:background="@drawable/card_background"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:visibility="gone"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Stock Status -->
+                <TextView
+                    android:id="@+id/stockStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/dark_text_secondary"
+                    android:layout_marginBottom="16dp"
+                    tools:text="25 in stock" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/dark_text_secondary"
+                    android:alpha="0.2"
+                    android:layout_marginVertical="16dp" />
+
+                <!-- Description -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Description"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_text_primary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/productDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/dark_text_secondary"
+                    android:layout_marginBottom="16dp"
+                    tools:text="Hand-crafted ceramic vase with unique glaze pattern. Perfect for flower arrangements or as a decorative piece." />
+
+                <!-- Materials -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Materials Used"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/dark_text_primary"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/materialsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/dark_text_secondary"
+                    android:layout_marginBottom="24dp"
+                    tools:text="Ceramic clay, high-fired glaze, hand-painted details" />
+            </LinearLayout>
+
+            <!-- Error State -->
+            <LinearLayout
+                android:id="@+id/errorMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="@color/red_500"
+                    android:layout_marginBottom="16dp"
+                    tools:text="Failed to load product" />
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Retry" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Action Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/dark_bg_secondary"
+        android:padding="12dp"
+        android:gravity="center"
+        android:visibility="visible"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addToCartButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Add to Cart"
+            android:layout_marginEnd="8dp"
+            app:backgroundTint="@color/dark_bg_primary"
+            app:strokeColor="@color/amber_600"
+            app:strokeWidth="2dp"
+            app:cornerRadius="8dp"
+            android:textColor="@color/amber_600" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buyNowButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Buy Now"
+            app:backgroundTint="@color/amber_600"
+            app:cornerRadius="8dp"
+            android:textColor="@color/white" />
+    </LinearLayout>
+</LinearLayout>

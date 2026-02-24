@@ -34,9 +34,21 @@ export class CartService {
     try {
       const storageKey = getCartStorageKey(userId);
       const storedCart = localStorage.getItem(storageKey);
+      
       if (storedCart) {
         return JSON.parse(storedCart);
       }
+      
+      // Check for old cart data without userId (migration)
+      const oldCart = localStorage.getItem('cart_');
+      if (oldCart) {
+        console.log('🔄 Migrating old cart data to user-specific storage');
+        const migratedCart = JSON.parse(oldCart);
+        localStorage.setItem(storageKey, oldCart);
+        localStorage.removeItem('cart_'); // Clean up old key
+        return migratedCart;
+      }
+      
       return [];
     } catch (error) {
       console.error('Failed to parse cart from localStorage', error);

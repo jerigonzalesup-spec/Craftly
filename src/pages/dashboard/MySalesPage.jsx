@@ -43,8 +43,21 @@ export default function MySalesPage() {
   const sellerOrders = useMemo(() => {
     // Orders from API already have sellerItems and sellerTotal calculated
     // Just sort them by date (should already be sorted, but ensure consistency)
-    return orders
+    const sorted = orders
       .sort((a, b) => getDateFromCreatedAt(b.createdAt).getTime() - getDateFromCreatedAt(a.createdAt).getTime());
+    
+    // DEBUG: Log order data structure
+    if (sorted.length > 0) {
+      console.log(`📋 Seller Orders Debug - First order:`, {
+        orderId: sorted[0].id,
+        paymentStatus: sorted[0].paymentStatus,
+        sellerTotal: sorted[0].sellerTotal,
+        sellerItems: sorted[0].sellerItems,
+        items: sorted[0].items,
+      });
+    }
+    
+    return sorted;
 
   }, [orders]);
 
@@ -164,9 +177,9 @@ export default function MySalesPage() {
                     <TableCell>{format(getDateFromCreatedAt(order.createdAt), 'PPP')}</TableCell>
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{order.shippingAddress.fullName}</TableCell>
                     <TableCell className="font-medium">
-                      {/* Only show revenue for paid orders, show 0 for unpaid */}
-                      ₱{order.paymentStatus === 'paid' ? order.sellerTotal.toFixed(2) : '0.00'}
-                      {order.paymentStatus !== 'paid' && <span className="text-xs text-muted-foreground block">(pending)</span>}
+                      {/* Show revenue for all orders - payment is already validated at checkout */}
+                      ₱{order.sellerTotal?.toFixed(2) || '0.00'}
+                      {order.paymentStatus !== 'paid' && <span className="text-xs text-muted-foreground block">({order.paymentStatus})</span>}
                     </TableCell>
                     <TableCell>
                       <Badge

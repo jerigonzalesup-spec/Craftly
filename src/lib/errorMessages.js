@@ -98,9 +98,17 @@ export function getUserFriendlyError(error) {
  */
 export function convertApiErrorMessage(errorData) {
   if (!errorData) return 'An error occurred. Please try again.';
-  
+
   const errorMsg = errorData.error || errorData.message || '';
   const msg = errorMsg.toLowerCase();
+
+  // Email verification errors
+  if (msg.includes('verification code') && msg.includes('expired')) return 'Your verification code has expired. Please request a new one.';
+  if (msg.includes('verification code') && msg.includes('invalid')) return 'The code you entered is incorrect. Please try again.';
+  if (msg.includes('too many') && msg.includes('attempts')) return 'Too many failed attempts. Please request a new code.';
+  if (msg.includes('verification code') && msg.includes('found')) return 'No verification code found. Please request a new one.';
+  if (msg.includes('name') && msg.includes('already') && msg.includes('exists')) return 'An account with this name already exists. Please use a different name.';
+  if (msg.includes('email') && msg.includes('already') && msg.includes('use')) return 'This email is already registered. Try signing in instead.';
 
   // Authentication errors
   if (msg.includes('password') && msg.includes('incorrect')) return 'Incorrect password. Please try again.';

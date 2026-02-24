@@ -179,6 +179,14 @@ export function BecomeSellerSection() {
                     Tell us a bit about yourself and what you create. We'll review your application and get back to you.
                 </DialogDescription>
             </DialogHeader>
+            <Alert className="bg-blue-50 border-blue-200">
+                <AlertTitle className="text-blue-900">📋 Platform Commission</AlertTitle>
+                <AlertDescription className="text-blue-800">
+                    Once approved, sellers pay <strong>5%</strong> commission on all sales.
+                    <br />
+                    <span className="text-sm">Example: Sale ₱10,000 → You earn ₱9,500</span>
+                </AlertDescription>
+            </Alert>
             <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                 <FormField

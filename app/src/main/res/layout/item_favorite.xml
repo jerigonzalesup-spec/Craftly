@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="@color/dark_bg_secondary"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="0dp">
+
+        <!-- Product Image -->
+        <ImageView
+            android:id="@+id/favoriteImage"
+            android:layout_width="0dp"
+            android:layout_height="160dp"
+            android:contentDescription="Favorite product image"
+            android:scaleType="centerCrop"
+            android:background="@color/dark_bg_primary"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:src="@color/dark_bg_primary" />
+
+        <!-- Category Badge -->
+        <TextView
+            android:id="@+id/favoriteCategory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/category_chip_background"
+            android:layout_margin="10dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:text="Category"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="@id/favoriteImage"
+            app:layout_constraintTop_toTopOf="@id/favoriteImage"
+            tools:text="Crafts" />
+
+        <!-- Product Details -->
+        <LinearLayout
+            android:id="@+id/detailsContainer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/favoriteImage">
+
+            <!-- Product Name -->
+            <TextView
+                android:id="@+id/favoriteName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:lines="2"
+                android:text="Product Name"
+                android:textColor="@color/dark_text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp"
+                tools:text="Hand-crafted Ceramic Vase" />
+
+            <!-- Rating -->
+            <TextView
+                android:id="@+id/favoriteRating"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="★ 4.5"
+                android:textColor="@color/yellow_400"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp"
+                tools:text="★ 4.5 (23)" />
+
+            <!-- Sales Count -->
+            <TextView
+                android:id="@+id/salesCount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="45 sold"
+                android:textColor="@color/dark_text_secondary"
+                android:textSize="10sp"
+                android:layout_marginBottom="10dp"
+                tools:text="125 sold" />
+
+            <!-- Price -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:id="@+id/favoritePrice"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="₱ 1,200"
+                    android:textColor="@color/amber_600"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="₱ 1,200" />
+            </LinearLayout>
+
+            <!-- Remove Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/removeButton"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="Remove from Favorites"
+                android:textSize="12sp"
+                app:backgroundTint="@color/red_500"
+                app:cornerRadius="8dp"
+                android:textColor="@color/white" />
+
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

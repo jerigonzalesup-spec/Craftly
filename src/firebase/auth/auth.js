@@ -144,12 +144,36 @@ export async function signIn(data) {
 
 /**
  * Sign out user
- * Clears localStorage session
+ * Clears localStorage session and all frontend caches
  */
 export async function signOutUser() {
   console.log('👋 Signing out user');
   localStorage.removeItem('craftly_user');
   localStorage.removeItem('craftly_user_id');
+  localStorage.removeItem('user_roles');
+
+  // Clear all frontend caches to prevent data leakage between accounts
+  // Clear orders cache
+  sessionStorage.clear();
+
+  // Try to clear module-level caches from hooks if they exist
+  try {
+    // Clear cart cache
+    localStorage.removeItem('craftly_cart');
+
+    // Clear favorites cache
+    localStorage.removeItem('craftly_favorites');
+
+    // Clear any order-related caches
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.includes('order') || key.includes('cache') || key.includes('Order')) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (e) {
+    console.warn('Could not clear some caches:', e);
+  }
 
   // Dispatch custom event to notify other parts of the app
   window.dispatchEvent(new CustomEvent('craftly-user-changed', { detail: null }));

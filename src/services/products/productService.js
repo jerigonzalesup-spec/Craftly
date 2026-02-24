@@ -12,7 +12,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const productCache = {
   data: null,
   timestamp: null,
-  ttl: 15 * 60 * 1000, // 15 minutes cache duration (increased from 5 min to reduce quota)
+  ttl: 2 * 1000, // 2 seconds cache duration (fast product updates)
 };
 
 export class ProductService {

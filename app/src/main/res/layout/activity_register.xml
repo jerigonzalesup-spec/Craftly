@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_bg_primary"
+    android:padding="@dimen/spacing_16">
+
+    <!-- Registration Form Container -->
+    <LinearLayout
+        android:id="@+id/formContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="visible"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Create Account"
+            android:textSize="@dimen/text_heading"
+            android:textColor="@color/dark_text_primary"
+            android:textStyle="bold"
+            android:textAlignment="center"
+            android:layout_marginTop="@dimen/spacing_24"
+            android:layout_marginBottom="@dimen/spacing_8" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Join our community of buyers and sellers"
+            android:textSize="@dimen/text_small"
+            android:textColor="@color/dark_text_secondary"
+            android:textAlignment="center"
+            android:layout_marginBottom="@dimen/spacing_24" />
+
+        <!-- First Name Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/firstNameLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="First Name"
+            android:layout_marginBottom="@dimen/spacing_16"
+            app:boxBackgroundColor="@color/dark_bg_secondary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/firstNameEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:textColor="@color/dark_text_primary"
+                android:textColorHint="@color/dark_text_secondary" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Last Name Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/lastNameLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Last Name"
+            android:layout_marginBottom="@dimen/spacing_16"
+            app:boxBackgroundColor="@color/dark_bg_secondary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/lastNameEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:textColor="@color/dark_text_primary"
+                android:textColorHint="@color/dark_text_secondary" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Email Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/emailLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Email"
+            android:layout_marginBottom="@dimen/spacing_16"
+            app:boxBackgroundColor="@color/dark_bg_secondary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/emailEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textEmailAddress"
+                android:textColor="@color/dark_text_primary"
+                android:textColorHint="@color/dark_text_secondary" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Password Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/passwordLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Password"
+            android:layout_marginBottom="@dimen/spacing_16"
+            app:boxBackgroundColor="@color/dark_bg_secondary"
+            app:endIconMode="password_toggle">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/passwordEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:textColor="@color/dark_text_primary"
+                android:textColorHint="@color/dark_text_secondary" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Password Strength Info -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Password must contain: 8+ chars, uppercase, lowercase, number, special character"
+            android:textSize="@dimen/text_small"
+            android:textColor="@color/dark_text_secondary"
+            android:layout_marginBottom="@dimen/spacing_16" />
+
+        <!-- Create Account Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/createAccountButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Create Account"
+            android:textColor="@color/white"
+            android:textSize="@dimen/text_body"
+            android:layout_marginTop="@dimen/spacing_24"
+            app:backgroundTint="@color/amber_600"
+            app:cornerRadius="@dimen/corner_radius_medium" />
+
+        <!-- Divider -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="@dimen/spacing_20">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="@color/gray_600" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="or"
+                android:textColor="@color/dark_text_secondary"
+                android:textSize="@dimen/text_small"
+                android:layout_marginStart="@dimen/spacing_12"
+                android:layout_marginEnd="@dimen/spacing_12" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="@color/gray_600" />
+        </LinearLayout>
+
+        <!-- Google Sign-In Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/googleSignInButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Continue with Google"
+            android:textColor="@color/dark_text_primary"
+            android:textSize="@dimen/text_body"
+            android:layout_marginTop="@dimen/spacing_16"
+            app:backgroundTint="@color/dark_bg_secondary"
+            app:cornerRadius="@dimen/corner_radius_medium"
+            app:strokeColor="@color/gray_600"
+            app:strokeWidth="1dp" />
+
+        <!-- Login Link -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="@dimen/spacing_24">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Already have an account? "
+                android:textColor="@color/dark_text_secondary"
+                android:textSize="@dimen/text_small" />
+
+            <TextView
+                android:id="@+id/loginLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Login"
+                android:textColor="@color/amber_600"
+                android:textSize="@dimen/text_small"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Verification Container -->
+    <LinearLayout
+        android:id="@+id/verificationContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Verify Your Email"
+            android:textSize="@dimen/text_heading"
+            android:textColor="@color/dark_text_primary"
+            android:textStyle="bold"
+            android:textAlignment="center"
+            android:layout_marginTop="@dimen/spacing_24"
+            android:layout_marginBottom="@dimen/spacing_8" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enter the 6-digit code sent to your email"
+            android:textSize="@dimen/text_small"
+            android:textColor="@color/dark_text_secondary"
+            android:textAlignment="center"
+            android:layout_marginBottom="@dimen/spacing_24" />
+
+        <!-- Verification Code Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/verificationCodeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="6-Digit Code"
+            android:layout_marginBottom="@dimen/spacing_24"
+            app:boxBackgroundColor="@color/dark_bg_secondary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/verificationCodeEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:maxLength="6"
+                android:textAlignment="center"
+                android:textSize="24sp"
+                android:letterSpacing="0.25"
+                android:textColor="@color/dark_text_primary"
+                android:textColorHint="@color/dark_text_secondary" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Verify Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/verifyButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Verify"
+            android:textColor="@color/white"
+            android:textSize="@dimen/text_body"
+            app:backgroundTint="@color/amber_600"
+            app:cornerRadius="@dimen/corner_radius_medium" />
+
+        <!-- Back Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/backButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Back to Form"
+            android:textColor="@color/amber_600"
+            android:textSize="@dimen/text_body"
+            android:layout_marginTop="@dimen/spacing_12"
+            app:backgroundTint="@color/dark_bg_secondary"
+            app:cornerRadius="@dimen/corner_radius_medium"
+            app:strokeColor="@color/amber_600"
+            app:strokeWidth="1dp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

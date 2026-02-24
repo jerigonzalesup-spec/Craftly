@@ -6,11 +6,11 @@
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Cache for orders (45 seconds TTL for faster updates on small project)
+// Cache for orders (1 second TTL for immediate updates)
 const ordersCache = new Map(); // Map<userId, { data: Array, timestamp }>
 const orderDetailsCache = new Map(); // Map<orderId, { data: Object, timestamp }>
-const ORDERS_CACHE_TTL = 45 * 1000; // 45 seconds for user's orders
-const ORDER_DETAILS_CACHE_TTL = 45 * 1000; // 45 seconds for order details
+const ORDERS_CACHE_TTL = 1 * 1000; // 1 second for user's orders (fast updates)
+const ORDER_DETAILS_CACHE_TTL = 1 * 1000; // 1 second for order details (fast updates)
 
 export class OrdersService {
   /**

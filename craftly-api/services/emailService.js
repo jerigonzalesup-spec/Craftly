@@ -163,6 +163,49 @@ export const sendTotpSetupEmail = async (email, appName = 'Craftly') => {
 };
 
 /**
+ * Send email verification code
+ * @param {string} email - Recipient email
+ * @param {string} code - 6-digit verification code
+ */
+export const sendEmailVerificationCode = async (email, code) => {
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: 'Craftly - Email Verification Code',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
+          <h1 style="color: #333;">Craftly</h1>
+        </div>
+        <div style="padding: 20px;">
+          <h2 style="color: #333;">Verify Your Email</h2>
+          <p>Thank you for registering with Craftly. Enter this code to complete your account setup:</p>
+
+          <div style="background-color: #e3f2fd; padding: 20px; border-radius: 4px; margin: 20px 0; text-align: center;">
+            <p style="color: #1976d2; margin: 0; font-size: 12px;">Your verification code (expires in 2 minutes):</p>
+            <p style="color: #1565c0; margin: 10px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 2px; font-family: monospace;">${code}</p>
+          </div>
+
+          <p style="color: #666;">This code is valid for 2 minutes. If you didn't register, you can safely ignore this email.</p>
+        </div>
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email verification code sent to', email);
+    return { success: true, message: 'Verification code sent', messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending verification code:', error);
+    throw new Error(`Failed to send verification code: ${error.message}`);
+  }
+};
+
+/**
  * Send backup codes email
  * @param {string} email - Recipient email
  * @param {array} backupCodes - Array of backup codes
@@ -209,6 +252,131 @@ export const sendBackupCodesEmail = async (email, backupCodes) => {
     return { success: true, message: 'Email sent successfully', messageId: info.messageId };
   } catch (error) {
     console.error('❌ Error sending backup codes email:', error);
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
+};
+
+/**
+ * Send seller application approval email
+ * @param {string} email - Recipient email
+ * @param {string} shopName - Seller's shop name
+ */
+export const sendSellerApprovalEmail = async (email, shopName) => {
+  const dashboardLink = `${process.env.FRONTEND_URL}/dashboard`;
+
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: `✅ Welcome! Your Shop "${shopName}" is Approved`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
+          <h1 style="color: #333;">Craftly</h1>
+        </div>
+        <div style="padding: 20px;">
+          <h2 style="color: #2e7d32;">✅ Congratulations!</h2>
+          <p>Great news! Your seller application for <strong>"${shopName}"</strong> has been approved. Your shop is now live!</p>
+
+          <div style="background-color: #e8f5e9; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <h3 style="color: #2e7d32; margin-top: 0;">📊 Platform Commission: 5%</h3>
+            <p style="color: #333; margin: 10px 0;">We charge <strong>5%</strong> commission on all your sales as a platform fee.</p>
+            <p style="color: #666; font-size: 13px; margin: 0;">Example: Sale ₱10,000 → You earn ₱9,500 (5% = ₱500 goes to platform)</p>
+          </div>
+
+          <h3 style="color: #333;">🚀 Get Started:</h3>
+          <p>
+            <a href="${dashboardLink}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+              Go to Your Dashboard
+            </a>
+          </p>
+          <ul style="color: #666;">
+            <li>Upload your products</li>
+            <li>Set product prices and descriptions</li>
+            <li>Start receiving orders from customers</li>
+          </ul>
+
+          <p style="color: #666;">Questions? Feel free to reply to this email or visit our help center.</p>
+
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">Thank you for joining the Craftly community!</p>
+        </div>
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Seller approval email sent to', email);
+    return { success: true, message: 'Approval email sent successfully', messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending seller approval email:', error);
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
+};
+
+/**
+ * Send seller application rejection email
+ * @param {string} email - Recipient email
+ * @param {string} shopName - Seller's shop name
+ * @param {string} rejectionReason - Reason for rejection
+ */
+export const sendSellerRejectionEmail = async (email, shopName, rejectionReason) => {
+  const reapplyLink = `${process.env.FRONTEND_URL}/profile`;
+
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: `ℹ️ Application Update: "${shopName}"`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
+          <h1 style="color: #333;">Craftly</h1>
+        </div>
+        <div style="padding: 20px;">
+          <h2 style="color: #333;">Application Update</h2>
+          <p>Thank you for applying to become a seller on Craftly.</p>
+
+          <div style="background-color: #fff3e0; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <p style="color: #f57f17; margin: 0; font-weight: bold;">❌ Unfortunately, your application was not approved at this time.</p>
+          </div>
+
+          <h3 style="color: #333;">Feedback:</h3>
+          <p style="background-color: #f5f5f5; padding: 12px; border-left: 4px solid #ff9800; color: #333;">
+            ${rejectionReason || 'Please review your application and try again.'}
+          </p>
+
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <h3 style="color: #1976d2; margin-top: 0;">💡 Platform Commission: 5%</h3>
+            <p style="color: #333; margin: 0;">Just so you know—once approved, sellers pay <strong>5%</strong> commission on all sales.</p>
+          </div>
+
+          <h3 style="color: #333;">Try Again:</h3>
+          <p>We encourage you to submit another application with updated information. You can reapply anytime from your profile.</p>
+          <p>
+            <a href="${reapplyLink}" style="background-color: #FF9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+              Go to Profile & Reapply
+            </a>
+          </p>
+
+          <p style="color: #666;">If you have questions about the feedback, feel free to contact us.</p>
+
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">We hope to see you back soon!</p>
+        </div>
+        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Seller rejection email sent to', email);
+    return { success: true, message: 'Rejection email sent successfully', messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending seller rejection email:', error);
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };
