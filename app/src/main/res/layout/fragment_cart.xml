@@ -49,7 +49,7 @@
             android:layout_height="wrap_content"
             android:text="Your cart is empty"
             android:textColor="@color/dark_text_primary"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:layout_marginBottom="12dp" />
 
@@ -58,17 +58,22 @@
             android:layout_height="wrap_content"
             android:text="Start shopping to add items to your cart"
             android:textColor="@color/dark_text_secondary"
-            android:textSize="14sp"
-            android:layout_marginBottom="24dp" />
+            android:textSize="15sp"
+            android:layout_marginBottom="28dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/continueShopping"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
+            android:layout_height="50dp"
             android:text="Continue Shopping"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
             app:backgroundTint="@color/amber_600"
-            app:cornerRadius="8dp"
-            android:textColor="@color/white" />
+            app:cornerRadius="10dp"
+            android:textColor="@color/white"
+            app:rippleColor="@color/amber_700" />
     </LinearLayout>
 
     <!-- Cart Content (Visible when cart has items) -->
@@ -154,11 +159,14 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/checkoutButton"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="50dp"
                 android:text="Proceed to Checkout"
+                android:textSize="15sp"
+                android:textStyle="bold"
                 app:backgroundTint="@color/amber_600"
-                app:cornerRadius="8dp"
-                android:textColor="@color/white" />
+                app:cornerRadius="10dp"
+                android:textColor="@color/white"
+                app:rippleColor="@color/amber_700" />
         </LinearLayout>
     </LinearLayout>
 

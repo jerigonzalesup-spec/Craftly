@@ -1,6 +1,8 @@
 package com.craftly.cart.data.remote
 
 import com.craftly.cart.data.models.Cart
+import com.craftly.cart.data.models.AddToCartRequest
+import com.craftly.cart.data.models.UpdateCartItemRequest
 import com.craftly.cart.data.models.SyncCartRequest
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -16,14 +18,14 @@ interface CartApiService {
     @POST("/api/cart/{userId}")
     suspend fun addToCart(
         @Path("userId") userId: String,
-        @Body request: Map<String, Any>
+        @Body request: AddToCartRequest
     ): Cart
 
     @PUT("/api/cart/{userId}/{itemId}")
     suspend fun updateCartItem(
         @Path("userId") userId: String,
         @Path("itemId") itemId: String,
-        @Body request: Map<String, Any>
+        @Body request: UpdateCartItemRequest
     ): Cart
 
     @DELETE("/api/cart/{userId}/{itemId}")

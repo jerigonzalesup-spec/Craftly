@@ -3,6 +3,8 @@ package com.craftly.cart.data.repository
 import com.craftly.cart.data.models.Cart
 import com.craftly.cart.data.models.CartItem
 import com.craftly.cart.data.models.SyncCartRequest
+import com.craftly.cart.data.models.AddToCartRequest
+import com.craftly.cart.data.models.UpdateCartItemRequest
 import com.craftly.cart.data.remote.CartApiService
 import com.craftly.auth.data.local.SharedPreferencesManager
 
@@ -36,9 +38,9 @@ class CartRepository(
     suspend fun addToCart(product: CartItem): Result<Cart> = try {
         val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val request = mapOf(
-            "productId" to product.productId,
-            "quantity" to product.quantity
+        val request = AddToCartRequest(
+            productId = product.productId,
+            quantity = product.quantity
         )
 
         val cart = apiService.addToCart(userId, request)
@@ -53,7 +55,7 @@ class CartRepository(
     suspend fun updateCartItem(itemId: String, quantity: Int): Result<Cart> = try {
         val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val request = mapOf("quantity" to quantity)
+        val request = UpdateCartItemRequest(quantity = quantity)
         val cart = apiService.updateCartItem(userId, itemId, request)
         cachedCart = cart
         cacheTimestamp = System.currentTimeMillis()

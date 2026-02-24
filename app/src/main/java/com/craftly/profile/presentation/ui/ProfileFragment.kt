@@ -9,7 +9,9 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.craftly.MainActivity
+import com.craftly.R
 import com.craftly.auth.data.local.SharedPreferencesManager
+import com.craftly.auth.domain.models.RoleNames
 import com.craftly.core.network.RetrofitClient
 import com.craftly.databinding.FragmentProfileBinding
 import com.craftly.profile.data.remote.ProfileApiService
@@ -43,15 +45,27 @@ class ProfileFragment : Fragment() {
         // Load profile data
         val user = prefsManager.getUser()
         if (user != null) {
-            // Update header with welcome message
-            updateHeaderWithUserName(user.displayName)
+            // Update header with welcome message and role info
+            updateHeaderWithUserInfo(user.displayName, user.roles)
             viewModel.loadProfile(user.uid)
         }
     }
 
-    private fun updateHeaderWithUserName(displayName: String) {
+    private fun updateHeaderWithUserInfo(displayName: String, roles: List<String>) {
         val firstName = displayName.split(" ").first()
         binding.profileHeaderText.text = "Welcome, $firstName"
+
+        // Show role badge if user is a seller
+        updateRoleBadge(roles)
+    }
+
+    private fun updateRoleBadge(roles: List<String>) {
+        val isSeller = RoleNames.isSeller(roles)
+        val roleBadge = binding.root.findViewWithTag<android.widget.TextView>("role_badge")
+        if (isSeller && roleBadge != null) {
+            roleBadge.visibility = View.VISIBLE
+            roleBadge.text = getString(R.string.role_seller_badge)
+        }
     }
 
     private fun setupViewModel() {
@@ -84,6 +98,12 @@ class ProfileFragment : Fragment() {
 
                 state.profile?.let { profile ->
                     populateFields(profile)
+
+                    // Show/hide seller sections based on user roles
+                    val user = prefsManager.getUser()
+                    if (user != null) {
+                        updateSellerSectionVisibility(user.roles)
+                    }
                 }
 
                 state.error?.let { error ->
@@ -95,9 +115,20 @@ class ProfileFragment : Fragment() {
                 }
 
                 binding.saveButton.isEnabled = !state.isSaving
-                binding.saveButton.text = if (state.isSaving) "Saving..." else "Save Changes"
+                binding.saveButton.text = if (state.isSaving) {
+                    getString(R.string.profile_saving)
+                } else {
+                    getString(R.string.profile_save_changes)
+                }
             }
         }
+    }
+
+    private fun updateSellerSectionVisibility(roles: List<String>) {
+        val isSeller = RoleNames.isSeller(roles)
+
+        // Seller sections are always shown since buyers can prepare for selling
+        // In future, could conditionally hide based on application status
     }
 
     private fun populateFields(profile: com.craftly.profile.data.models.UserProfile) {
@@ -142,11 +173,11 @@ class ProfileFragment : Fragment() {
 
         // Validation
         if (firstName.isEmpty()) {
-            Toast.makeText(requireContext(), "First name is required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.profile_first_name_required), Toast.LENGTH_SHORT).show()
             return
         }
         if (lastName.isEmpty()) {
-            Toast.makeText(requireContext(), "Last name is required", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.profile_last_name_required), Toast.LENGTH_SHORT).show()
             return
         }
 

@@ -44,4 +44,16 @@
     <string name="image_next_button">Next image</string>
     <string name="back_button">Go back</string>
     <string name="favorite_toggle">Add to favorites</string>
+
+    <!-- Profile -->
+    <string name="profile_saving">Saving...</string>
+    <string name="profile_save_changes">Save Changes</string>
+    <string name="profile_first_name_required">First name is required</string>
+    <string name="profile_last_name_required">Last name is required</string>
+
+    <!-- Roles -->
+    <string name="role_buyer">Buyer</string>
+    <string name="role_seller">Seller</string>
+    <string name="role_seller_badge">✓ Seller</string>
+    <string name="role_buyer_and_seller">Buyer &amp; Seller</string>
 </resources>
