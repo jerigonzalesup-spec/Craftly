@@ -87,23 +87,23 @@ class ProfileFragment : Fragment() {
         }
 
         binding.emulatorButton.setOnClickListener {
-            NetworkConfig.setToEmulator()
+            NetworkConfig.setToLocalhost()
             updateCurrentApiUrl()
             binding.customIpInput.setText("")
             Toast.makeText(
                 requireContext(),
-                "Switched to Emulator\nRestart app to apply",
+                "API set to localhost\nRestart app to apply",
                 Toast.LENGTH_SHORT
             ).show()
         }
 
         binding.deviceButton.setOnClickListener {
-            NetworkConfig.setToPhysicalDevice()
+            NetworkConfig.setToLocalhost()
             updateCurrentApiUrl()
             binding.customIpInput.setText("")
             Toast.makeText(
                 requireContext(),
-                "Switched to Device\nRestart app to apply",
+                "API set to localhost\nRestart app to apply",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -114,28 +114,23 @@ class ProfileFragment : Fragment() {
             binding.customIpInput.setText("")
             Toast.makeText(
                 requireContext(),
-                "Reset to Auto-detect\nRestart app to apply",
-                Toast.LENGTH_SHORT
+                "Reset to localhost\nMake sure to run: adb reverse tcp:5000 tcp:5000",
+                Toast.LENGTH_LONG
             ).show()
         }
 
         binding.applyCustomIpButton.setOnClickListener {
-            val customIp = binding.customIpInput.text.toString().trim()
-            if (customIp.isEmpty()) {
-                Toast.makeText(requireContext(), "Please enter a valid IP address", Toast.LENGTH_SHORT).show()
+            val customUrl = binding.customIpInput.text.toString().trim()
+            if (customUrl.isEmpty()) {
+                Toast.makeText(requireContext(), "Please enter a valid URL", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            if (!isValidIpAddress(customIp)) {
-                Toast.makeText(requireContext(), "Invalid IP address format", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            NetworkConfig.setToPhysicalDevice(customIp)
+            NetworkConfig.setCustomUrl(customUrl)
             updateCurrentApiUrl()
             Toast.makeText(
                 requireContext(),
-                "Applied Custom IP: $customIp:5000\nRestart app to apply",
+                "Applied custom URL: $customUrl\nRestart app to apply",
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -262,17 +257,10 @@ class ProfileFragment : Fragment() {
         val currentUrl = NetworkConfig.getBaseUrl()
         binding.currentApiUrlText.text = "Current API: $currentUrl"
 
-        // Populate custom IP field if one is set
-        val customIp = NetworkConfig.getCustomIp()
-        if (!customIp.isNullOrEmpty()) {
-            binding.customIpInput.setText(customIp)
+        // Populate custom URL field if one is set
+        val customUrl = NetworkConfig.getCustomUrl()
+        if (!customUrl.isNullOrEmpty()) {
+            binding.customIpInput.setText(customUrl)
         }
-    }
-
-    private fun isValidIpAddress(ip: String): Boolean {
-        val ipPattern = Regex(
-            "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-        )
-        return ipPattern.matches(ip)
     }
 }
