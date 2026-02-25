@@ -450,6 +450,114 @@
                         android:inputType="text" />
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <!-- Developer Settings -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Developer Settings"
+                    android:textColor="@color/amber_600"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"
+                    android:layout_marginTop="8dp" />
+
+                <!-- Current API Endpoint -->
+                <TextView
+                    android:id="@+id/currentApiUrlText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="API Endpoint: Loading..."
+                    android:textColor="@color/dark_text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="12dp"
+                    android:padding="8dp"
+                    android:background="@color/dark_bg_secondary"
+                    android:lineSpacingMultiplier="1.2" />
+
+                <!-- Quick Endpoint Buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginBottom="12dp"
+                    android:spacing="8dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/emulatorButton"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="Emulator"
+                        android:textSize="12sp"
+                        app:cornerRadius="6dp"
+                        app:backgroundTint="@color/dark_text_secondary"
+                        android:layout_marginEnd="4dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/deviceButton"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="Device"
+                        android:textSize="12sp"
+                        app:cornerRadius="6dp"
+                        app:backgroundTint="@color/dark_text_secondary"
+                        android:layout_marginEnd="4dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/resetButton"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:text="Auto"
+                        android:textSize="12sp"
+                        app:cornerRadius="6dp"
+                        app:backgroundTint="@color/dark_text_secondary" />
+                </LinearLayout>
+
+                <!-- Custom IP Input -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Custom IP (Optional)"
+                    android:layout_marginBottom="12dp"
+                    app:boxBackgroundColor="@color/dark_bg_secondary"
+                    app:boxCornerRadiusTopStart="8dp"
+                    app:boxCornerRadiusTopEnd="8dp"
+                    app:boxCornerRadiusBottomStart="8dp"
+                    app:boxCornerRadiusBottomEnd="8dp"
+                    app:boxStrokeColor="@color/dark_text_secondary"
+                    app:boxStrokeWidth="1dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/customIpInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/dark_text_primary"
+                        android:inputType="text"
+                        android:hint="e.g., 192.168.1.100" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Apply Custom IP Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/applyCustomIpButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="Apply Custom IP"
+                    android:textSize="12sp"
+                    app:cornerRadius="6dp"
+                    app:backgroundTint="@color/amber_700"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/dark_text_secondary"
+                    android:alpha="0.2"
+                    android:layout_marginVertical="16dp" />
+
                 <!-- Delivery Methods -->
                 <TextView
                     android:layout_width="wrap_content"

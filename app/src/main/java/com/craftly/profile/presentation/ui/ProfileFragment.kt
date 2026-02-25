@@ -12,6 +12,7 @@ import com.craftly.MainActivity
 import com.craftly.R
 import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.auth.domain.models.RoleNames
+import com.craftly.core.network.NetworkConfig
 import com.craftly.core.network.RetrofitClient
 import com.craftly.databinding.FragmentProfileBinding
 import com.craftly.profile.data.remote.ProfileApiService
@@ -41,6 +42,7 @@ class ProfileFragment : Fragment() {
         setupViewModel()
         setupClickListeners()
         observeViewModel()
+        updateCurrentApiUrl()
 
         // Load profile data
         val user = prefsManager.getUser()
@@ -82,6 +84,60 @@ class ProfileFragment : Fragment() {
 
         binding.logoutButton.setOnClickListener {
             (requireActivity() as? MainActivity)?.logout()
+        }
+
+        binding.emulatorButton.setOnClickListener {
+            NetworkConfig.setToEmulator()
+            updateCurrentApiUrl()
+            binding.customIpInput.setText("")
+            Toast.makeText(
+                requireContext(),
+                "Switched to Emulator\nRestart app to apply",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        binding.deviceButton.setOnClickListener {
+            NetworkConfig.setToPhysicalDevice()
+            updateCurrentApiUrl()
+            binding.customIpInput.setText("")
+            Toast.makeText(
+                requireContext(),
+                "Switched to Device\nRestart app to apply",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        binding.resetButton.setOnClickListener {
+            NetworkConfig.resetToDefault()
+            updateCurrentApiUrl()
+            binding.customIpInput.setText("")
+            Toast.makeText(
+                requireContext(),
+                "Reset to Auto-detect\nRestart app to apply",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        binding.applyCustomIpButton.setOnClickListener {
+            val customIp = binding.customIpInput.text.toString().trim()
+            if (customIp.isEmpty()) {
+                Toast.makeText(requireContext(), "Please enter a valid IP address", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!isValidIpAddress(customIp)) {
+                Toast.makeText(requireContext(), "Invalid IP address format", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            NetworkConfig.setToPhysicalDevice(customIp)
+            updateCurrentApiUrl()
+            Toast.makeText(
+                requireContext(),
+                "Applied Custom IP: $customIp:5000\nRestart app to apply",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -200,5 +256,23 @@ class ProfileFragment : Fragment() {
             allowShipping = allowShipping,
             allowPickup = allowPickup
         )
+    }
+
+    private fun updateCurrentApiUrl() {
+        val currentUrl = NetworkConfig.getBaseUrl()
+        binding.currentApiUrlText.text = "Current API: $currentUrl"
+
+        // Populate custom IP field if one is set
+        val customIp = NetworkConfig.getCustomIp()
+        if (!customIp.isNullOrEmpty()) {
+            binding.customIpInput.setText(customIp)
+        }
+    }
+
+    private fun isValidIpAddress(ip: String): Boolean {
+        val ipPattern = Regex(
+            "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+        )
+        return ipPattern.matches(ip)
     }
 }
