@@ -15,10 +15,22 @@ object NetworkConfig {
     const val LOCAL_DEVICE_IP_URL = "http://10.40.21.163:5000"  // Change this to your machine's IP
     const val DEFAULT_URL = LOCAL_DEVICE_IP_URL
 
+    // Old hardcoded IP - used for migration only
+    private const val OLD_DEVICE_IP = "http://192.168.1.207:5000"
+
     private lateinit var prefs: SharedPreferences
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        // Migrate old IP to new IP if found
+        val storedUrl = prefs.getString(API_URL_KEY, null)
+        if (storedUrl == OLD_DEVICE_IP) {
+            // Clear the old configuration and reset to auto-detect
+            prefs.edit().remove(API_URL_KEY).apply()
+            prefs.edit().remove(IS_CONFIGURED_KEY).apply()
+        }
+
         // Auto-select best endpoint on first run
         if (!prefs.contains(API_URL_KEY)) {
             val bestUrl = detectBestEndpoint()
@@ -102,5 +114,3 @@ object NetworkConfig {
         return prefs.getBoolean(IS_CONFIGURED_KEY, false)
     }
 }
-
-
