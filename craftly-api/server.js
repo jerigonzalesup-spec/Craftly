@@ -30,55 +30,22 @@ console.log(`📍 Environment: ${NODE_ENV}`);
 // MIDDLEWARE
 // ===========================
 
-// CORS configuration - supports comma-separated list of allowed origins
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
-
-const corsOriginCheck = (origin, callback) => {
-  // Allow requests with no origin (mobile apps, Postman, curl, etc.)
-  if (!origin) return callback(null, true);
-
-  // Allow wildcard entry - reflect the origin back (required when credentials: true)
-  if (allowedOrigins.includes('*')) {
-    return callback(null, origin);
+// Manual CORS headers — handles all origins including wildcard + credentials
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
-
-  // Allow any localhost origin in development
-  if (NODE_ENV === 'development' && origin.startsWith('http://localhost')) {
-    return callback(null, true);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-User-ID');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
   }
-
-  // Allow Firebase Hosting URLs (*.web.app / *.firebaseapp.com)
-  if (origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) {
-    return callback(null, true);
-  }
-
-  // Allow Railway URLs
-  if (origin.endsWith('.up.railway.app')) {
-    return callback(null, true);
-  }
-
-  // Allow if origin is in the list
-  if (allowedOrigins.includes(origin)) {
-    return callback(null, true);
-  }
-
-  callback(new Error('Not allowed by CORS'));
-};
-
-const corsOptions = {
-  origin: corsOriginCheck,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-ID'],
-  optionsSuccessStatus: 200,
-};
-
-// Handle OPTIONS preflight explicitly FIRST
-app.options('*', cors(corsOptions));
-app.use(cors(corsOptions));
+  next();
+});
 
 // Body parser with increased limits for file uploads
 app.use(express.json({ limit: '50mb' }));
