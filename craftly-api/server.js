@@ -55,6 +55,11 @@ const corsOriginCheck = (origin, callback) => {
     return callback(null, true);
   }
 
+  // Allow Railway URLs
+  if (origin.endsWith('.up.railway.app')) {
+    return callback(null, true);
+  }
+
   // Allow if origin is in the list
   if (allowedOrigins.includes(origin)) {
     return callback(null, true);
