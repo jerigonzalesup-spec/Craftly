@@ -20,6 +20,7 @@ yarn.lock
 dist/
 build/
 .cache/
+.firebase/
 
 # Logs
 *.log
