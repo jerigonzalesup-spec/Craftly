@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
-console.log('🚀 Starting Craftly API...');
+console.log('🚀 Starting Craftly API... [v2026-02-28-C]');
 console.log(`📍 Environment: ${NODE_ENV}`);
 
 // ===========================
