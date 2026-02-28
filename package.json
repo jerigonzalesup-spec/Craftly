@@ -8,7 +8,8 @@
     "dev:backend": "cd craftly-api && npm start",
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "vite build",
-    "start": "serve dist -s -l $PORT"
+    "start": "serve dist -s -l $PORT",
+    "deploy": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

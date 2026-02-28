@@ -1,6 +1,17 @@
 {
-  "projects": {
-    "default": "studio-3437465512-f56c8"
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   },
   "firestore": {
     "rules": "firestore.rules"
