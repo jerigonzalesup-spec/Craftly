@@ -68,12 +68,17 @@ const corsOriginCheck = (origin, callback) => {
   callback(new Error('Not allowed by CORS'));
 };
 
-app.use(cors({
+const corsOptions = {
   origin: corsOriginCheck,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-ID'],
-}));
+  optionsSuccessStatus: 200,
+};
+
+// Handle OPTIONS preflight explicitly FIRST
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Body parser with increased limits for file uploads
 app.use(express.json({ limit: '50mb' }));
