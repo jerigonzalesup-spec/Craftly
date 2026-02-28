@@ -8,7 +8,7 @@
     "dev:backend": "cd craftly-api && npm start",
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "vite build",
-    "start": "vite"
+    "start": "serve dist -s -l $PORT"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -44,6 +44,7 @@
     "recharts": "^2.12.7",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
+    "serve": "^14.2.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
