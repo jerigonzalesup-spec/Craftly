@@ -19,7 +19,7 @@ object NetworkConfig {
     //   2. Click the deployed service → Settings → Domains → copy the URL
     //   3. Paste it here (must end with a /)
     // Example: "https://craftly-api-production.up.railway.app/"
-    const val PRODUCTION_URL = ""   // ← FILL THIS IN after deploying
+    const val PRODUCTION_URL = "https://craftly-production.up.railway.app/"
 
     // Real physical devices will use PRODUCTION_URL (if set), otherwise LOCALHOST_URL
     val DEFAULT_URL get() = if (PRODUCTION_URL.isNotBlank()) PRODUCTION_URL else LOCALHOST_URL
