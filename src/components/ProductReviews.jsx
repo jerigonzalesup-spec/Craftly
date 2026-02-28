@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   collection,
   query,
@@ -41,35 +41,28 @@ export function ProductReviews({ productId, productCreatorId, productName }) {
 
   const userHasReviewed = user ? reviews.some((r) => r.id === user.uid) : false;
 
-  useEffect(() => {
+  const fetchReviews = useCallback(async () => {
     if (!firestore) return;
     setLoading(true);
-
-    // Using one-time fetch instead of real-time listener to prevent Firestore watch target state corruption
-    const fetchReviews = async () => {
-      try {
-        const reviewsColRef = collection(firestore, `products/${productId}/reviews`);
-        const q = query(reviewsColRef, orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(q);
-        const fetchedReviews = snapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() })
-        );
-        setReviews(fetchedReviews);
-      } catch (error) {
-        if (error.code !== 'permission-denied') {
-          console.error('Error fetching reviews:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Could not load reviews',
-          });
-        }
-      } finally {
-        setLoading(false);
+    try {
+      const reviewsColRef = collection(firestore, `products/${productId}/reviews`);
+      const q = query(reviewsColRef, orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const fetchedReviews = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setReviews(fetchedReviews);
+    } catch (error) {
+      if (error.code !== 'permission-denied') {
+        console.error('Error fetching reviews:', error);
+        toast({ variant: 'destructive', title: 'Could not load reviews' });
       }
-    };
-
-    fetchReviews();
+    } finally {
+      setLoading(false);
+    }
   }, [firestore, productId, toast]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   const onSubmit = async (data) => {
     if (!user || !firestore) {
@@ -112,6 +105,8 @@ export function ProductReviews({ productId, productCreatorId, productName }) {
       });
       form.reset();
       setRating(0);
+      // Re-fetch reviews so the new one appears immediately
+      await fetchReviews();
     } catch (error) {
       console.error('Error submitting review:', error);
       toast({
@@ -128,7 +123,11 @@ export function ProductReviews({ productId, productCreatorId, productName }) {
     <div className="space-y-8">
       <h2 className="text-3xl font-bold font-headline">Customer Reviews</h2>
       
-      {user && !userHasReviewed && (
+      {user && user.uid === productCreatorId && (
+        <p className="text-center text-muted-foreground bg-accent p-4 rounded-md">You cannot review your own product.</p>
+      )}
+
+      {user && !userHasReviewed && user.uid !== productCreatorId && (
         <Card>
             <CardHeader>
                 <CardTitle>Leave a Review</CardTitle>
@@ -159,7 +158,7 @@ export function ProductReviews({ productId, productCreatorId, productName }) {
         </Card>
       )}
 
-      {user && userHasReviewed && (
+      {user && userHasReviewed && user.uid !== productCreatorId && (
         <p className="text-center text-muted-foreground bg-accent p-4 rounded-md">You've already reviewed this product. Thank you!</p>
       )}
 

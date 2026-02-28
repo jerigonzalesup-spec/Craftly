@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.craftly.orders.data.models.Order
 import com.craftly.orders.data.models.OrdersResponse
 import com.craftly.orders.data.repository.OrdersRepository
+import com.craftly.core.utils.ErrorMapper
 import kotlinx.coroutines.launch
 
 sealed class OrdersUiState {
@@ -42,7 +43,7 @@ class OrdersViewModel(private val ordersRepository: OrdersRepository) : ViewMode
             result.onSuccess { response ->
                 _uiState.value = OrdersUiState.Success(response)
             }.onFailure { error ->
-                _uiState.value = OrdersUiState.Error(error.message ?: "Failed to load orders")
+                _uiState.value = OrdersUiState.Error(ErrorMapper.friendlyMessage(error))
             }
         }
     }
@@ -54,19 +55,19 @@ class OrdersViewModel(private val ordersRepository: OrdersRepository) : ViewMode
             result.onSuccess { order ->
                 _detailUiState.value = OrderDetailUiState.Success(order)
             }.onFailure { error ->
-                _detailUiState.value = OrderDetailUiState.Error(error.message ?: "Failed to load order details")
+                _detailUiState.value = OrderDetailUiState.Error(ErrorMapper.friendlyMessage(error))
             }
         }
     }
 
     fun cancelOrder(orderId: String) {
         viewModelScope.launch {
-            val result = ordersRepository.cancelOrder(orderId)
-            result.onSuccess { order ->
-                _successMessage.value = "Order cancelled successfully"
-                loadOrders() // Refresh orders list
+            val result = ordersRepository.updateOrderStatus(orderId, "cancelled")
+            result.onSuccess {
+                _successMessage.value = "Order #${orderId.takeLast(6).uppercase()} cancelled"
+                loadOrders() // Refresh list
             }.onFailure { error ->
-                _successMessage.value = "Failed to cancel order: ${error.message}"
+                _successMessage.value = "Failed to cancel order. Please try again."
             }
         }
     }

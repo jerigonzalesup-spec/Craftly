@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardBackgroundColor="@color/dark_bg_secondary"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Order ID + Date row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/saleOrderId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/amber_600"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                tools:text="Order #abc123" />
+
+            <TextView
+                android:id="@+id/saleDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/dark_text_secondary"
+                android:textSize="11sp"
+                tools:text="Feb 20, 2025" />
+
+        </LinearLayout>
+
+        <!-- Buyer name -->
+        <TextView
+            android:id="@+id/saleBuyerName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/dark_text_primary"
+            android:textSize="13sp"
+            android:layout_marginBottom="6dp"
+            tools:text="Buyer: Maria Santos" />
+
+        <!-- Items summary -->
+        <TextView
+            android:id="@+id/saleItemsSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/dark_text_secondary"
+            android:textSize="12sp"
+            android:layout_marginBottom="6dp"
+            tools:text="2 item(s): Ceramic Vase, Woven Basket" />
+
+        <!-- GCash receipt pending review badge -->
+        <TextView
+            android:id="@+id/paymentReviewBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="&#9200; Receipt pending review — tap Review to approve"
+            android:textColor="#D97706"
+            android:textSize="11sp"
+            android:layout_marginBottom="6dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Total -->
+        <TextView
+            android:id="@+id/saleTotal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/amber_600"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="10dp"
+            tools:text="₱ 2,400" />
+
+        <!-- Status row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Status: "
+                android:textColor="@color/dark_text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/saleStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/dark_text_primary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="pending" />
+
+            <!-- Status update button (hidden when locked) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/updateStatusButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Update"
+                android:textSize="11sp"
+                app:backgroundTint="@color/amber_600"
+                app:cornerRadius="6dp"
+                android:textColor="@color/white" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reviewPaymentButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Review"
+                android:textSize="11sp"
+                android:layout_marginStart="6dp"
+                app:backgroundTint="#166534"
+                app:cornerRadius="6dp"
+                android:textColor="@color/white"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Lock warning (visible only when order is locked) -->
+        <TextView
+            android:id="@+id/lockedWarning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⏰ Status locked (24h editing window passed)"
+            android:textColor="@color/dark_text_secondary"
+            android:textSize="11sp"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

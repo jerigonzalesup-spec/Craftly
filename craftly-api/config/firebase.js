@@ -49,6 +49,7 @@ export function initializeFirebaseAdmin() {
     firebaseApp = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       projectId: serviceAccount.project_id,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
     });
 
     console.log('✅ Firebase Admin SDK initialized successfully');
@@ -80,8 +81,10 @@ export function getAuth() {
  */
 export function getStorage() {
   initializeFirebaseAdmin();
-  // Get default bucket from Firebase project
+  // Use env var first; fall back to computed name
+  // NOTE: bucket name does NOT include 'gs://' prefix
   const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${process.env.FIREBASE_PROJECT_ID}.appspot.com`;
+  console.log(`🪣 Using storage bucket: ${bucketName}`);
   return admin.storage().bucket(bucketName);
 }
 

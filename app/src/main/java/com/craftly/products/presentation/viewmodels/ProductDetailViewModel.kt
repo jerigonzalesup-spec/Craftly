@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.craftly.products.data.models.Product
 import com.craftly.products.data.repository.ProductRepository
+import com.craftly.core.utils.ErrorMapper
 import kotlinx.coroutines.launch
 
 sealed class ProductDetailUiState {
@@ -36,7 +37,7 @@ class ProductDetailViewModel(
 
                 _uiState.value = ProductDetailUiState.Success(product)
             } catch (e: Exception) {
-                _uiState.value = ProductDetailUiState.Error(e.message ?: "Unknown error")
+                _uiState.value = ProductDetailUiState.Error(ErrorMapper.friendlyMessage(e))
             }
         }
     }

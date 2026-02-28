@@ -31,6 +31,28 @@ data class VerifyEmailCodeRequest(
     val lastName: String
 )
 
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class VerifyResetCodeRequest(
+    val email: String,
+    val code: String
+)
+
+data class ResetPasswordWithCodeRequest(
+    val email: String,
+    val code: String,
+    val newPassword: String
+)
+
+data class GoogleSignInRequest(
+    val idToken: String,
+    val email: String,
+    val displayName: String?,
+    val photoURL: String?
+)
+
 // Response Models
 data class AuthResponse(
     val success: Boolean,
@@ -53,5 +75,6 @@ data class User(
     val email: String,
     val displayName: String,
     val roles: List<String>,
-    val isAuthenticated: Boolean = true
+    val isAuthenticated: Boolean = true,
+    val photoUrl: String? = null
 )

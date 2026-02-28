@@ -190,4 +190,53 @@ class ProductRepository(private val apiService: ProductApiService) {
         cacheTimestamp = 0
         statsCache.clear()
     }
+
+    // ─── Seller-specific operations ──────────────────────────────────────────
+
+    /** Fetch only the products created by [sellerId], bypassing the shared cache. */
+    suspend fun getSellerProducts(sellerId: String): List<Product> {
+        return try {
+            val response = apiService.getSellerProducts(
+                sellerId = sellerId,
+                status = "active",
+                userId = sellerId
+            )
+            if (response.success && response.data != null) response.data.filterNotNull()
+            else emptyList()
+        } catch (e: Exception) {
+            android.util.Log.e("ProductRepository", "getSellerProducts error: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun createProduct(
+        userId: String,
+        request: com.craftly.products.data.remote.CreateProductRequest
+    ): Product {
+        val response = apiService.createProduct(userId, request)
+        if (response.success && response.data != null) {
+            clearCache() // invalidate shared cache after mutation
+            return response.data
+        }
+        throw Exception("Failed to create product")
+    }
+
+    suspend fun updateProduct(
+        productId: String,
+        userId: String,
+        request: com.craftly.products.data.remote.UpdateProductRequest
+    ): Product {
+        val response = apiService.updateProduct(productId, userId, request)
+        if (response.success && response.data != null) {
+            clearCache()
+            return response.data
+        }
+        throw Exception("Failed to update product")
+    }
+
+    suspend fun deleteProduct(productId: String, userId: String) {
+        val response = apiService.deleteProduct(productId, userId)
+        if (!response.success) throw Exception("Failed to delete product")
+        clearCache()
+    }
 }

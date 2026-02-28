@@ -7,35 +7,49 @@ import com.craftly.orders.data.models.UpdateOrderStatusRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Header
 
 interface OrdersApiService {
-    @GET("/api/orders/{userId}")
-    suspend fun getUserOrders(@Path("userId") userId: String): OrdersResponse
-
-    @GET("/api/orders/{userId}/{orderId}")
-    suspend fun getOrderDetails(
-        @Path("userId") userId: String,
-        @Path("orderId") orderId: String
-    ): OrderDetailResponse
-
-    @POST("/api/orders/{userId}")
+    @POST("/api/orders")
     suspend fun createOrder(
-        @Path("userId") userId: String,
+        @Header("x-user-id") userId: String,
         @Body request: CreateOrderRequest
     ): OrderDetailResponse
 
-    @PUT("/api/orders/{userId}/{orderId}")
+    @GET("/api/orders/{userId}")
+    suspend fun getUserOrders(
+        @Path("userId") userId: String
+    ): OrdersResponse
+
+    @GET("/api/orders/{orderId}/details")
+    suspend fun getOrderDetails(
+        @Path("orderId") orderId: String
+    ): OrderDetailResponse
+
+    /** Get all orders that contain this seller's products */
+    @GET("/api/orders/seller/{sellerId}")
+    suspend fun getSellerOrders(
+        @Path("sellerId") sellerId: String
+    ): OrdersResponse
+
+    /** Update order status (seller action, locked after 24h) */
+    @POST("/api/orders/{orderId}/status")
     suspend fun updateOrderStatus(
-        @Path("userId") userId: String,
         @Path("orderId") orderId: String,
+        @Header("x-user-id") userId: String,
         @Body request: UpdateOrderStatusRequest
     ): OrderDetailResponse
 
-    @POST("/api/orders/{userId}/{orderId}/cancel")
-    suspend fun cancelOrder(
-        @Path("userId") userId: String,
-        @Path("orderId") orderId: String
+    @POST("/api/orders/{orderId}/payment-status")
+    suspend fun updatePaymentStatus(
+        @Path("orderId") orderId: String,
+        @Header("x-user-id") userId: String,
+        @Body request: UpdatePaymentStatusRequest
     ): OrderDetailResponse
 }
+
+data class UpdatePaymentStatusRequest(
+    val paymentStatus: String
+)
+

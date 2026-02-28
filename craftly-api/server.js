@@ -30,19 +30,37 @@ console.log(`📍 Environment: ${NODE_ENV}`);
 // MIDDLEWARE
 // ===========================
 
-// CORS configuration - allow any localhost origin in development
+// CORS configuration - supports comma-separated list of allowed origins
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 const corsOriginCheck = (origin, callback) => {
-  // Allow requests with no origin (like mobile apps, Postman, etc.)
+  // Allow requests with no origin (mobile apps, Postman, curl, etc.)
   if (!origin) return callback(null, true);
 
-  // In development, allow any localhost origin
+  // Allow any localhost origin in development
   if (NODE_ENV === 'development' && origin.startsWith('http://localhost')) {
-    callback(null, true);
-  } else if (origin === CORS_ORIGIN) {
-    callback(null, true);
-  } else {
-    callback(new Error('Not allowed by CORS'));
+    return callback(null, true);
   }
+
+  // Allow wildcard entry (e.g. CORS_ORIGIN=*)
+  if (allowedOrigins.includes('*')) {
+    return callback(null, true);
+  }
+
+  // Allow Firebase Hosting URLs (*.web.app / *.firebaseapp.com)
+  if (origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) {
+    return callback(null, true);
+  }
+
+  // Allow if origin is in the list
+  if (allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+
+  callback(new Error('Not allowed by CORS'));
 };
 
 app.use(cors({
@@ -137,7 +155,7 @@ app.use(errorHandler);
 // START SERVER
 // ===========================
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✅ Craftly API Server Running!`);
   console.log(`📍 URL: http://localhost:${PORT}`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/health`);

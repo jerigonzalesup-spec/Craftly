@@ -29,13 +29,20 @@
         </LinearLayout>
 
         <!-- Favorites RecyclerView -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/favoritesRecyclerView"
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLayout"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:padding="8dp"
-            tools:listitem="@layout/item_favorite" />
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/favoritesRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                tools:listitem="@layout/item_favorite" />
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
     </LinearLayout>
 
     <!-- Empty State Container -->
@@ -71,6 +78,18 @@
             android:textColor="@color/dark_text_secondary"
             android:textSize="14sp"
             android:gravity="center" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/browseFavoritesButton"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginTop="24dp"
+            android:text="Browse Products"
+            android:textSize="14sp"
+            app:backgroundTint="@color/amber_600"
+            app:cornerRadius="8dp"
+            xmlns:app="http://schemas.android.com/apk/res-auto" />
+
     </LinearLayout>
 
     <!-- Loading Progress Bar -->

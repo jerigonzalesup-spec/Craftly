@@ -12,6 +12,7 @@ class SharedPreferencesManager(context: Context) {
             putString("user_email", user.email)
             putString("user_displayName", user.displayName)
             putString("user_roles", user.roles.joinToString(","))
+            putString("user_photoUrl", user.photoUrl)
             apply()
         }
     }
@@ -22,7 +23,8 @@ class SharedPreferencesManager(context: Context) {
             uid = uid,
             email = prefs.getString("user_email", "") ?: "",
             displayName = prefs.getString("user_displayName", "") ?: "",
-            roles = prefs.getString("user_roles", "buyer")?.split(",")?.filter { it.isNotEmpty() } ?: listOf("buyer")
+            roles = prefs.getString("user_roles", "buyer")?.split(",")?.filter { it.isNotEmpty() } ?: listOf("buyer"),
+            photoUrl = prefs.getString("user_photoUrl", null)
         )
     }
 

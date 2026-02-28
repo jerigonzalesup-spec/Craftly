@@ -212,54 +212,22 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp">
 
-                <LinearLayout
+                <RadioButton
+                    android:id="@+id/localDeliveryRadio"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingVertical="8dp"
-                    android:gravity="center_vertical">
+                    android:text="🚚 Local Delivery  (+₱50.00)"
+                    android:textColor="@color/dark_text_primary"
+                    android:paddingVertical="10dp"
+                    android:checked="true" />
 
-                    <RadioButton
-                        android:id="@+id/localDeliveryRadio"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🚚 Local Delivery"
-                        android:textColor="@color/dark_text_primary"
-                        android:checked="true" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="(₱50.00 fee)"
-                        android:textColor="@color/dark_text_secondary"
-                        android:textSize="12sp"
-                        android:paddingStart="8dp" />
-                </LinearLayout>
-
-                <LinearLayout
+                <RadioButton
+                    android:id="@+id/storePickupRadio"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingVertical="8dp"
-                    android:gravity="center_vertical">
-
-                    <RadioButton
-                        android:id="@+id/storePickupRadio"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🏪 Store Pickup"
-                        android:textColor="@color/dark_text_primary" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="(Free)"
-                        android:textColor="@color/dark_text_secondary"
-                        android:textSize="12sp"
-                        android:paddingStart="8dp" />
-                </LinearLayout>
+                    android:text="🏪 Store Pickup  (Free)"
+                    android:textColor="@color/dark_text_primary"
+                    android:paddingVertical="10dp" />
             </RadioGroup>
 
             <!-- Shipping Address Section (shown only for Local Delivery) -->
@@ -377,6 +345,7 @@
                 android:layout_marginBottom="12dp" />
 
             <RadioGroup
+                android:id="@+id/paymentMethodGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp">
@@ -387,6 +356,7 @@
                     android:layout_height="wrap_content"
                     android:text="💵 Cash on Delivery (COD)"
                     android:textColor="@color/dark_text_primary"
+                    android:paddingVertical="10dp"
                     android:checked="true" />
 
                 <RadioButton
@@ -394,51 +364,132 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="📱 GCash Payment"
-                    android:textColor="@color/dark_text_primary" />
+                    android:textColor="@color/dark_text_primary"
+                    android:paddingVertical="10dp" />
             </RadioGroup>
 
-            <!-- GCash Details (hidden by default) -->
+            <!-- GCash Details (hidden by default) - shows SELLER's GCash info + receipt upload -->
             <LinearLayout
                 android:id="@+id/gcashDetails"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone"
+                android:background="@drawable/card_background"
+                android:padding="16dp"
                 android:layout_marginBottom="16dp">
 
-                <com.google.android.material.textfield.TextInputLayout
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GCash Payment Instructions"
+                    android:textColor="@color/dark_text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Loading state while fetching seller profile -->
+                <ProgressBar
+                    android:id="@+id/gcashInfoLoading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <!-- Seller's GCash info (shown after loading) -->
+                <LinearLayout
+                    android:id="@+id/gcashSellerInfoContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    app:boxCornerRadiusTopStart="8dp"
-                    app:boxCornerRadiusTopEnd="8dp"
-                    app:boxCornerRadiusBottomStart="8dp"
-                    app:boxCornerRadiusBottomEnd="8dp">
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:layout_marginBottom="12dp">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/gcashName"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:hint="GCash Account Name"
-                        android:inputType="text" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:text="Send payment to:"
+                        android:textColor="@color/dark_text_secondary"
+                        android:textSize="13sp"
+                        android:layout_marginBottom="8dp" />
 
-                <com.google.android.material.textfield.TextInputLayout
+                    <TextView
+                        android:id="@+id/gcashSellerName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/dark_text_primary"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp"
+                        tools:text="Account Name: Juan Dela Cruz" />
+
+                    <TextView
+                        android:id="@+id/gcashSellerNumber"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/amber_600"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp"
+                        tools:text="GCash Number: 09XX XXX XXXX" />
+                </LinearLayout>
+
+                <!-- Seller has no GCash details message -->
+                <TextView
+                    android:id="@+id/gcashNotAvailableText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    app:boxCornerRadiusTopStart="8dp"
-                    app:boxCornerRadiusTopEnd="8dp"
-                    app:boxCornerRadiusBottomStart="8dp"
-                    app:boxCornerRadiusBottomEnd="8dp">
+                    android:text="Seller has not set up GCash. Please choose Cash on Delivery."
+                    android:textColor="#EF4444"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    android:layout_marginBottom="8dp" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/gcashNumber"
-                        android:layout_width="match_parent"
+                <!-- Receipt upload section -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/dark_text_secondary"
+                    android:alpha="0.2"
+                    android:layout_marginVertical="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Upload your payment receipt:"
+                    android:textColor="@color/dark_text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/pickReceiptButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="📎 Select Receipt Image"
+                    android:textSize="13sp"
+                    app:backgroundTint="@color/dark_bg_primary"
+                    app:cornerRadius="8dp"
+                    android:textColor="@color/dark_text_primary"
+                    style="@style/Widget.MaterialComponents.Button.TextButton" />
+
+                <!-- Receipt file name preview -->
+                <LinearLayout
+                    android:id="@+id/receiptPreviewContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/receiptFileName"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:hint="GCash Number"
-                        android:inputType="phone" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:layout_weight="1"
+                        android:textColor="@color/dark_text_secondary"
+                        android:textSize="12sp"
+                        tools:text="Selected: receipt_photo.jpg" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

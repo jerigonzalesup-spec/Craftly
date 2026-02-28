@@ -12,14 +12,19 @@ import com.craftly.MainActivity
 import com.craftly.R
 import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.auth.domain.models.RoleNames
-import com.craftly.core.network.NetworkConfig
 import com.craftly.core.network.RetrofitClient
 import com.craftly.databinding.FragmentProfileBinding
+import com.craftly.orders.presentation.ui.SellerSalesActivity
+import com.craftly.products.presentation.ui.SellerProductsActivity
 import com.craftly.profile.data.remote.ProfileApiService
 import com.craftly.profile.data.repository.ProfileRepository
 import com.craftly.profile.presentation.viewmodels.ProfileViewModel
 import com.craftly.profile.presentation.viewmodels.ProfileViewModelFactory
 import kotlinx.coroutines.launch
+import android.animation.ObjectAnimator
+import android.content.Intent
+import android.view.animation.DecelerateInterpolator
+import com.bumptech.glide.Glide
 
 class ProfileFragment : Fragment() {
     private lateinit var binding: FragmentProfileBinding
@@ -42,14 +47,28 @@ class ProfileFragment : Fragment() {
         setupViewModel()
         setupClickListeners()
         observeViewModel()
-        updateCurrentApiUrl()
 
         // Load profile data
         val user = prefsManager.getUser()
         if (user != null) {
             // Update header with welcome message and role info
             updateHeaderWithUserInfo(user.displayName, user.roles)
+
+            // Show seller dashboard immediately based on cached roles —
+            // don't wait for the API so sellers see it even before network responds
+            updateSellerSectionVisibility(user.roles)
+
             viewModel.loadProfile(user.uid)
+
+            // Load profile avatar
+            if (!user.photoUrl.isNullOrEmpty()) {
+                Glide.with(this)
+                    .load(user.photoUrl)
+                    .circleCrop()
+                    .placeholder(R.drawable.profile_button_background)
+                    .error(R.drawable.profile_button_background)
+                    .into(binding.profileAvatarImage)
+            }
         }
     }
 
@@ -86,53 +105,13 @@ class ProfileFragment : Fragment() {
             (requireActivity() as? MainActivity)?.logout()
         }
 
-        binding.emulatorButton.setOnClickListener {
-            NetworkConfig.setToLocalhost()
-            updateCurrentApiUrl()
-            binding.customIpInput.setText("")
-            Toast.makeText(
-                requireContext(),
-                "API set to localhost\nRestart app to apply",
-                Toast.LENGTH_SHORT
-            ).show()
+        // Seller dashboard navigation
+        binding.myProductsButton.setOnClickListener {
+            startActivity(Intent(requireContext(), SellerProductsActivity::class.java))
         }
 
-        binding.deviceButton.setOnClickListener {
-            NetworkConfig.setToLocalhost()
-            updateCurrentApiUrl()
-            binding.customIpInput.setText("")
-            Toast.makeText(
-                requireContext(),
-                "API set to localhost\nRestart app to apply",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        binding.resetButton.setOnClickListener {
-            NetworkConfig.resetToDefault()
-            updateCurrentApiUrl()
-            binding.customIpInput.setText("")
-            Toast.makeText(
-                requireContext(),
-                "Reset to localhost\nMake sure to run: adb reverse tcp:5000 tcp:5000",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-
-        binding.applyCustomIpButton.setOnClickListener {
-            val customUrl = binding.customIpInput.text.toString().trim()
-            if (customUrl.isEmpty()) {
-                Toast.makeText(requireContext(), "Please enter a valid URL", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            NetworkConfig.setCustomUrl(customUrl)
-            updateCurrentApiUrl()
-            Toast.makeText(
-                requireContext(),
-                "Applied custom URL: $customUrl\nRestart app to apply",
-                Toast.LENGTH_SHORT
-            ).show()
+        binding.mySalesButton.setOnClickListener {
+            startActivity(Intent(requireContext(), SellerSalesActivity::class.java))
         }
     }
 
@@ -145,15 +124,21 @@ class ProfileFragment : Fragment() {
                     binding.formContainer.visibility = View.GONE
                 } else {
                     binding.formContainer.visibility = View.VISIBLE
+                    animateFormContainer()
                 }
 
                 state.profile?.let { profile ->
                     populateFields(profile)
 
-                    // Show/hide seller sections based on user roles
+                    // Refresh seller card from the latest roles returned by the API.
+                    // This also handles the case where a user was promoted to seller
+                    // in Firestore after their last login (stale SharedPrefs).
+                    updateSellerSectionVisibility(profile.roles)
+
+                    // Persist the fresh roles so the next cold-start is correct
                     val user = prefsManager.getUser()
-                    if (user != null) {
-                        updateSellerSectionVisibility(user.roles)
+                    if (user != null && profile.roles.isNotEmpty()) {
+                        prefsManager.saveUser(user.copy(roles = profile.roles))
                     }
                 }
 
@@ -175,11 +160,25 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    private fun animateFormContainer() {
+        binding.formContainer.apply {
+            alpha = 0f
+            ObjectAnimator.ofFloat(this, "alpha", 0f, 1f).apply {
+                duration = 400
+                interpolator = DecelerateInterpolator()
+                start()
+            }
+        }
+    }
+
     private fun updateSellerSectionVisibility(roles: List<String>) {
         val isSeller = RoleNames.isSeller(roles)
-
-        // Seller sections are always shown since buyers can prepare for selling
-        // In future, could conditionally hide based on application status
+        val sellerVisibility = if (isSeller) View.VISIBLE else View.GONE
+        binding.sellerDashboardCard.visibility = sellerVisibility
+        binding.gcashPaymentCard.visibility = sellerVisibility
+        binding.shopProfileCard.visibility = sellerVisibility
+        binding.deliveryMethodsCard.visibility = sellerVisibility
+        binding.paymentMethodsCard.visibility = sellerVisibility
     }
 
     private fun populateFields(profile: com.craftly.profile.data.models.UserProfile) {
@@ -200,6 +199,8 @@ class ProfileFragment : Fragment() {
         binding.shopCityInput.setText(profile.shopCity ?: "")
         binding.allowShippingCheckbox.isChecked = profile.allowShipping
         binding.allowPickupCheckbox.isChecked = profile.allowPickup
+        binding.allowCodCheckbox.isChecked = profile.allowCod
+        binding.allowGcashCheckbox.isChecked = profile.allowGcash
     }
 
     private fun saveProfile() {
@@ -221,6 +222,8 @@ class ProfileFragment : Fragment() {
         val shopCity = binding.shopCityInput.text.toString().trim()
         val allowShipping = binding.allowShippingCheckbox.isChecked
         val allowPickup = binding.allowPickupCheckbox.isChecked
+        val allowCod = binding.allowCodCheckbox.isChecked
+        val allowGcash = binding.allowGcashCheckbox.isChecked
 
         // Validation
         if (firstName.isEmpty()) {
@@ -234,8 +237,7 @@ class ProfileFragment : Fragment() {
 
         viewModel.updateProfile(
             userId = user.uid,
-            firstName = firstName,
-            lastName = lastName,
+            fullName = "$firstName $lastName".trim(),
             contactNumber = contactNumber,
             streetAddress = streetAddress,
             barangay = barangay,
@@ -249,18 +251,10 @@ class ProfileFragment : Fragment() {
             shopBarangay = shopBarangay,
             shopCity = shopCity,
             allowShipping = allowShipping,
-            allowPickup = allowPickup
+            allowPickup = allowPickup,
+            allowCod = allowCod,
+            allowGcash = allowGcash
         )
     }
 
-    private fun updateCurrentApiUrl() {
-        val currentUrl = NetworkConfig.getBaseUrl()
-        binding.currentApiUrlText.text = "Current API: $currentUrl"
-
-        // Populate custom URL field if one is set
-        val customUrl = NetworkConfig.getCustomUrl()
-        if (!customUrl.isNullOrEmpty()) {
-            binding.customIpInput.setText(customUrl)
-        }
-    }
 }

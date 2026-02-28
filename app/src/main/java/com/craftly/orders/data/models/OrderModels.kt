@@ -1,22 +1,26 @@
 package com.craftly.orders.data.models
 
+import com.craftly.core.network.FlexibleDate
 import java.io.Serializable
 
 data class Order(
     val id: String = "",
-    val userId: String = "",
+    val buyerId: String = "",
     val items: List<OrderItem> = emptyList(),
     val totalAmount: Double = 0.0,
-    val status: String = "pending", // pending, processing, shipped, delivered, cancelled
-    val paymentStatus: String = "pending", // pending, paid, failed
-    val paymentMethod: String = "cod", // cod, gcash
+    val orderStatus: String = "pending",
+    val paymentStatus: String = "unpaid",
+    val paymentMethod: String = "cod",
+    val shippingMethod: String = "local-delivery",
+    val deliveryFee: Double = 0.0,
     val shippingAddress: ShippingAddress = ShippingAddress(),
-    val recipientName: String = "",
-    val recipientPhone: String = "",
-    val createdAt: String = "",
-    val updatedAt: String = "",
+    val receiptImageUrl: String? = null,
+    @FlexibleDate val createdAt: String = "",
+    @FlexibleDate val updatedAt: String = "",
     val estimatedDelivery: String? = null,
-    val trackingNumber: String? = null
+    val trackingNumber: String? = null,
+    val sellerTotal: Double? = null,
+    val sellerItems: List<OrderItem>? = null
 ) : Serializable
 
 data class OrderItem(
@@ -25,21 +29,33 @@ data class OrderItem(
     val productName: String = "",
     val quantity: Int = 1,
     val price: Double = 0.0,
-    val image: String = "",
-    val category: String = ""
+    val image: String? = null,   // backend stores null for missing images
+    val category: String = "",
+    val sellerId: String? = null  // backend stores null for missing sellerIds
 ) : Serializable
 
 data class ShippingAddress(
-    val street: String = "",
-    val barangay: String = "",
-    val city: String = "",
-    val postalCode: String = "",
-    val country: String = ""
+    val fullName: String = "",
+    val email: String = "",
+    val contactNumber: String = "",
+    val streetAddress: String? = null,
+    val barangay: String? = null,
+    val city: String? = null,
+    val postalCode: String? = null,
+    val country: String? = null
 ) : Serializable
+
+data class OrdersData(
+    val userId: String = "",
+    val orders: List<Order> = emptyList(),
+    val count: Int = 0,
+    val total: Int = 0,
+    val hasMore: Boolean = false
+)
 
 data class OrdersResponse(
     val success: Boolean = false,
-    val data: List<Order> = emptyList(),
+    val data: OrdersData? = null,
     val message: String? = null
 )
 
@@ -55,7 +71,8 @@ data class CreateOrderRequest(
     val recipientName: String,
     val recipientPhone: String,
     val paymentMethod: String = "cod",
-    val shippingMethod: String = "local-delivery"
+    val shippingMethod: String = "local-delivery",
+    val receiptImageUrl: String? = null
 )
 
 data class UpdateOrderStatusRequest(

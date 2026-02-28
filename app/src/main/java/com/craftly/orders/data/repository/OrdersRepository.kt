@@ -3,8 +3,8 @@ package com.craftly.orders.data.repository
 import com.craftly.orders.data.models.CreateOrderRequest
 import com.craftly.orders.data.models.Order
 import com.craftly.orders.data.models.OrdersResponse
-import com.craftly.orders.data.models.UpdateOrderStatusRequest
 import com.craftly.orders.data.remote.OrdersApiService
+import com.craftly.orders.data.remote.UpdatePaymentStatusRequest
 import com.craftly.auth.data.local.SharedPreferencesManager
 
 class OrdersRepository(
@@ -35,9 +35,7 @@ class OrdersRepository(
     }
 
     suspend fun getOrderDetails(orderId: String): Result<Order> = try {
-        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
-
-        val response = apiService.getOrderDetails(userId, orderId)
+        val response = apiService.getOrderDetails(orderId)
         Result.success(response.data)
     } catch (e: Exception) {
         android.util.Log.e("OrdersRepository", "Error fetching order details: ${e.message}", e)
@@ -55,31 +53,43 @@ class OrdersRepository(
         Result.failure(e)
     }
 
-    suspend fun updateOrderStatus(orderId: String, status: String, trackingNumber: String? = null): Result<Order> = try {
+    suspend fun updatePaymentStatus(orderId: String, paymentStatus: String): Result<Order> = try {
         val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-        val request = UpdateOrderStatusRequest(status, trackingNumber)
-        val response = apiService.updateOrderStatus(userId, orderId, request)
+        val request = UpdatePaymentStatusRequest(paymentStatus)
+        val response = apiService.updatePaymentStatus(orderId, userId, request)
+        clearCache()
+        Result.success(response.data)
+    } catch (e: Exception) {
+        android.util.Log.e("OrdersRepository", "Error updating payment status: ${e.message}", e)
+        Result.failure(e)
+    }
+
+
+    fun clearCache() {
+        cachedOrders = null
+        cacheTimestamp = 0
+    }
+
+    // ─── Seller-specific operations ──────────────────────────────────────────
+
+    suspend fun getSellerOrders(): Result<List<Order>> = try {
+        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
+        val response = apiService.getSellerOrders(userId)
+        Result.success(response.data?.orders ?: emptyList())
+    } catch (e: Exception) {
+        android.util.Log.e("OrdersRepository", "Error fetching seller orders: ${e.message}", e)
+        Result.failure(e)
+    }
+
+    suspend fun updateOrderStatus(orderId: String, newStatus: String): Result<Order> = try {
+        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
+        val request = com.craftly.orders.data.models.UpdateOrderStatusRequest(newStatus)
+        val response = apiService.updateOrderStatus(orderId, userId, request)
         clearCache()
         Result.success(response.data)
     } catch (e: Exception) {
         android.util.Log.e("OrdersRepository", "Error updating order status: ${e.message}", e)
         Result.failure(e)
-    }
-
-    suspend fun cancelOrder(orderId: String): Result<Order> = try {
-        val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
-
-        val response = apiService.cancelOrder(userId, orderId)
-        clearCache()
-        Result.success(response.data)
-    } catch (e: Exception) {
-        android.util.Log.e("OrdersRepository", "Error cancelling order: ${e.message}", e)
-        Result.failure(e)
-    }
-
-    fun clearCache() {
-        cachedOrders = null
-        cacheTimestamp = 0
     }
 }

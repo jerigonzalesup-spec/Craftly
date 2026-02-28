@@ -12,12 +12,12 @@
     <!-- Checkout -->
     <string name="checkout_recipient_details_required">Please fill in recipient details</string>
     <string name="checkout_address_required">Please fill in all shipping address fields</string>
-    <string name="checkout_order_error">Error: %1$s</string>
+    <string name="checkout_order_error">Failed to place order. Please try again.</string>
     <string name="checkout_order_placed">Order placed successfully</string>
 
     <!-- Product Detail -->
     <string name="product_not_found">Product not found</string>
-    <string name="product_error_display">Error displaying product: %1$s</string>
+    <string name="product_error_display">Could not load product details. Please try again.</string>
     <string name="product_rating_no_ratings">No ratings yet</string>
     <string name="product_sales_format">%1$d sold</string>
     <string name="product_stock_format">%1$d in stock</string>

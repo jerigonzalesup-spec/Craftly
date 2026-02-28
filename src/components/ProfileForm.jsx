@@ -21,6 +21,7 @@ import { isValidBarangay } from '@/lib/dagupanBarangays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { User, Phone, MapPin, Store, CreditCard, Truck, ShieldCheck } from 'lucide-react';
 import { BarangayInput } from '@/components/BarangayInput';
 import { RecoveryCodesSection } from '@/components/RecoveryCodesSection';
 import { useBarangaySuggestions } from '@/hooks/useBarangaySuggestions';
@@ -45,6 +46,8 @@ const formSchema = z.object({
   shopCity: z.string().optional().or(z.literal('')),
   allowShipping: z.boolean().optional(),
   allowPickup: z.boolean().optional(),
+  allowCod: z.boolean().optional(),
+  allowGcash: z.boolean().optional(),
 }).refine(data => {
   if (data.streetAddress && data.streetAddress.trim().length > 0) {
     const hasNumber = /\d/.test(data.streetAddress);
@@ -72,6 +75,7 @@ export function ProfileForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [profileLoading, setProfileLoading] = useState(false);
+  const isSeller = user?.roles?.includes('seller');
 
   // Barangay state management using custom hooks
   const barangay = useBarangaySuggestions();
@@ -100,6 +104,8 @@ export function ProfileForm() {
       shopCity: 'Dagupan',
       allowShipping: true,
       allowPickup: false,
+      allowCod: true,
+      allowGcash: false,
     }
   });
 
@@ -136,6 +142,8 @@ export function ProfileForm() {
             shopCity: profile.shopCity || 'Dagupan',
             allowShipping: profile.allowShipping !== false,
             allowPickup: profile.allowPickup === true,
+            allowCod: profile.allowCod !== false,
+            allowGcash: profile.allowGcash === true,
           });
           barangay.setInput(profile.barangay || '');
           shopBarangay.setInput(profile.shopBarangay || '');
@@ -175,6 +183,8 @@ export function ProfileForm() {
       if (values.shopCity) updateData.shopCity = values.shopCity;
       updateData.allowShipping = values.allowShipping;
       updateData.allowPickup = values.allowPickup;
+      updateData.allowCod = values.allowCod;
+      updateData.allowGcash = values.allowGcash;
 
       // Update profile via API service - this now returns complete profile data
       const responseData = await UserProfileService.updateUserProfile(user.uid, updateData);
@@ -204,6 +214,8 @@ export function ProfileForm() {
           shopCity: responseData.shopCity || 'Dagupan',
           allowShipping: responseData.allowShipping !== false,
           allowPickup: responseData.allowPickup === true,
+          allowCod: responseData.allowCod !== false,
+          allowGcash: responseData.allowGcash === true,
         });
         barangay.setInput(responseData.barangay || '');
         shopBarangay.setInput(responseData.shopBarangay || '');
@@ -273,7 +285,10 @@ export function ProfileForm() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Account Information */}
             <div className="space-y-4 pb-6 border-b">
-              <h3 className="text-sm font-semibold text-muted-foreground">Account Information</h3>
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide">Account Information</h3>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -320,7 +335,10 @@ export function ProfileForm() {
 
             {/* Contact Information */}
             <div className="space-y-4 pb-6 border-b">
-              <h3 className="text-sm font-semibold text-muted-foreground">Contact Information</h3>
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide">Contact Information</h3>
+              </div>
               <FormField
                 control={form.control}
                 name="contactNumber"
@@ -337,9 +355,12 @@ export function ProfileForm() {
               />
             </div>
 
-            {/* GCash Payment Details */}
-            <div className="space-y-4 pb-6 border-b">
-              <h3 className="text-sm font-semibold text-muted-foreground">GCash Payment Details (For Sellers)</h3>
+            {/* GCash Payment Details - Sellers only */}
+            {isSeller && (<div className="space-y-4 pb-6 border-b">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide">GCash Payment Details</h3>
+              </div>
               <FormField
                 control={form.control}
                 name="gcashName"
@@ -368,11 +389,14 @@ export function ProfileForm() {
                   </FormItem>
                 )}
               />
-            </div>
+            </div>)}
 
             {/* Shipping Address */}
             <div className="space-y-4 pb-6 border-b">
-              <h3 className="text-sm font-semibold text-muted-foreground">Shipping Address</h3>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide">Shipping Address</h3>
+              </div>
 
               <FormField
                 control={form.control}
@@ -474,9 +498,12 @@ export function ProfileForm() {
               </div>
             </div>
 
-            {/* Shop Profile Section */}
-            <div className="space-y-4 pb-6 border-b">
-              <h3 className="text-sm font-semibold text-muted-foreground">Shop Profile (For Sellers)</h3>
+            {/* Shop Profile Section - Sellers only */}
+            {isSeller && (<div className="space-y-4 pb-6 border-b">
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide">Shop Profile</h3>
+              </div>
 
               <FormField
                 control={form.control}
@@ -565,7 +592,10 @@ export function ProfileForm() {
               />
 
               <div className="space-y-3">
-                <h4 className="text-sm font-medium">Delivery Methods</h4>
+                <div className="flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5 text-muted-foreground" />
+                  <h4 className="text-sm font-medium">Delivery Methods</h4>
+                </div>
                 <div className="space-y-2">
                   <FormField
                     control={form.control}
@@ -606,7 +636,61 @@ export function ProfileForm() {
                 </div>
                 <p className="text-xs text-muted-foreground">Choose which delivery methods you want to offer customers</p>
               </div>
-            </div>
+
+              {isSeller && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
+                    <h4 className="text-sm font-medium">Payment Methods</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <FormField
+                      control={form.control}
+                      name="allowCod"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                            />
+                          </FormControl>
+                          <div>
+                            <FormLabel className="cursor-pointer font-normal">💵 Cash on Delivery (COD)</FormLabel>
+                            <p className="text-xs text-muted-foreground">Buyer pays in cash upon receiving the order</p>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="allowGcash"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                            />
+                          </FormControl>
+                          <div>
+                            <FormLabel className="cursor-pointer font-normal">📱 GCash</FormLabel>
+                            <p className="text-xs text-muted-foreground">Buyer sends payment via GCash and uploads receipt</p>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Choose which payment methods you accept from buyers</p>
+                </div>
+              )}
+            </div>)}
 
             {/* Recovery Codes Section */}
             <RecoveryCodesSection
@@ -626,7 +710,11 @@ export function ProfileForm() {
               onCloseCodesModal={recoveryCodes.handleCloseCodesModal}
             />
 
-            <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting || !form.formState.isDirty}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+            >
               {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
             </Button>
           </form>

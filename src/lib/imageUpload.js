@@ -1,6 +1,6 @@
 /**
- * Image upload utility for Firebase Storage
- * Converts files to Firebase Storage URLs for product images
+ * Image upload utility for Cloudinary
+ * Uploads images via the backend API which uses Cloudinary
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -25,10 +25,10 @@ export async function uploadProductImage(imageFile, userId) {
     throw new Error('Only image files are allowed');
   }
 
-  // Validate file size (2MB limit for testing)
-  const maxSize = 2 * 1024 * 1024; // 2MB
+  // Validate file size (5MB limit)
+  const maxSize = 5 * 1024 * 1024; // 5MB
   if (imageFile.size > maxSize) {
-    throw new Error('Image file must be less than 2MB');
+    throw new Error('Image file must be less than 5MB');
   }
 
   console.log(`📸 Uploading image:  ${imageFile.name} (${imageFile.size} bytes)`);

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/splash_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_bg_primary">
+
+    <!-- Amber radial glow behind the logo (animates with it) -->
+    <ImageView
+        android:id="@+id/splash_glow"
+        android:layout_width="380dp"
+        android:layout_height="380dp"
+        android:src="@drawable/splash_glow"
+        android:alpha="0"
+        android:importantForAccessibility="no"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/splash_logo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <!-- Craftly icon — large, centered in the vertical middle slightly above center -->
+    <ImageView
+        android:id="@+id/splash_logo"
+        android:layout_width="130dp"
+        android:layout_height="130dp"
+        android:src="@drawable/ic_craftly_splash"
+        android:alpha="0"
+        android:scaleX="0.3"
+        android:scaleY="0.3"
+        android:contentDescription="@string/app_name"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.38" />
+
+    <!-- "Craftly" brand wordmark -->
+    <TextView
+        android:id="@+id/splash_brand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="Craftly"
+        android:textSize="38sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.04"
+        android:textColor="@color/amber_600"
+        android:fontFamily="sans-serif-medium"
+        android:alpha="0"
+        app:layout_constraintTop_toBottomOf="@id/splash_logo"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Decorative divider dots -->
+    <LinearLayout
+        android:id="@+id/splash_dots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:alpha="0"
+        app:layout_constraintTop_toBottomOf="@id/splash_brand"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/splash_dot" />
+        <View
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="5dp"
+            android:background="@drawable/splash_dot_large" />
+        <View
+            android:layout_width="4dp"
+            android:layout_height="4dp"
+            android:background="@drawable/splash_dot" />
+    </LinearLayout>
+
+    <!-- Tagline: "Handcrafted with love" -->
+    <TextView
+        android:id="@+id/splash_tagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Handcrafted with love"
+        android:textSize="14sp"
+        android:textStyle="italic"
+        android:textColor="@color/gray_400"
+        android:letterSpacing="0.06"
+        android:alpha="0"
+        android:translationY="40dp"
+        app:layout_constraintTop_toBottomOf="@id/splash_dots"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Loading indicator — subtle pulsing amber circle -->
+    <ProgressBar
+        android:id="@+id/splash_loader"
+        style="?android:attr/progressBarStyleSmall"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginBottom="32dp"
+        android:alpha="0"
+        android:indeterminateTint="@color/amber_600"
+        app:layout_constraintBottom_toTopOf="@id/splash_version"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Version label at bottom -->
+    <TextView
+        android:id="@+id/splash_version"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:textSize="11sp"
+        android:textColor="@color/gray_600"
+        android:letterSpacing="0.08"
+        android:alpha="0"
+        tools:text="v1.0.0"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

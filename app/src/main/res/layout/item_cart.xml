@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginBottom="10dp"
     app:cardBackgroundColor="@color/dark_bg_secondary"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    app:cardCornerRadius="14dp"
+    app:cardElevation="3dp"
+    app:strokeWidth="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,8 +21,8 @@
         <!-- Product Image -->
         <ImageView
             android:id="@+id/cartItemImage"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
             android:contentDescription="Cart item image"
             android:scaleType="centerCrop"
             android:background="@drawable/card_background"
@@ -32,7 +35,7 @@
             android:layout_weight="1"
             android:orientation="vertical"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp">
+            android:paddingEnd="4dp">
 
             <!-- Product Name -->
             <TextView
@@ -41,31 +44,29 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:lines="2"
-                android:text="Product Name"
                 android:textColor="@color/dark_text_primary"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="4dp"
+                android:layout_marginBottom="5dp"
                 tools:text="Hand-crafted Ceramic Vase" />
 
-            <!-- Category and Price -->
+            <!-- Category chip + Price row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
+                android:layout_marginBottom="10dp">
 
                 <TextView
                     android:id="@+id/cartItemCategory"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/category_chip_background"
-                    android:text="Category"
                     android:textColor="@color/white"
                     android:textSize="10sp"
-                    android:paddingStart="6dp"
-                    android:paddingEnd="6dp"
+                    android:paddingStart="7dp"
+                    android:paddingEnd="7dp"
                     android:paddingTop="3dp"
                     android:paddingBottom="3dp"
                     android:layout_marginEnd="8dp"
@@ -76,48 +77,60 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="₱ 1,200"
                     android:textColor="@color/amber_600"
                     android:textSize="13sp"
                     android:textStyle="bold"
                     tools:text="₱ 1,200" />
             </LinearLayout>
 
-            <!-- Quantity Controls -->
+            <!-- Quantity Controls row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
+                android:gravity="center_vertical">
 
-                <Button
+                <!-- Decrease button -->
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/decreaseButton"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:text="-"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:text="−"
                     android:textSize="16sp"
+                    android:textColor="@color/dark_text_primary"
                     android:padding="0dp"
-                    android:layout_marginEnd="8dp" />
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:strokeColor="@color/dark_surface"
+                    app:strokeWidth="1dp"
+                    app:cornerRadius="8dp"
+                    app:backgroundTint="@color/dark_surface"
+                    app:rippleColor="@color/amber_600" />
 
                 <TextView
                     android:id="@+id/quantityText"
-                    android:layout_width="30dp"
-                    android:layout_height="32dp"
-                    android:text="1"
+                    android:layout_width="36dp"
+                    android:layout_height="34dp"
+                    android:gravity="center"
                     android:textColor="@color/dark_text_primary"
                     android:textSize="14sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="8dp" />
+                    android:textStyle="bold" />
 
-                <Button
+                <!-- Increase button -->
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/increaseButton"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:text="+"
                     android:textSize="16sp"
+                    android:textColor="@color/white"
                     android:padding="0dp"
-                    android:layout_marginEnd="16dp" />
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="8dp"
+                    app:backgroundTint="@color/amber_600"
+                    app:rippleColor="@color/amber_700" />
 
                 <Space
                     android:layout_width="0dp"
@@ -129,7 +142,6 @@
                     android:id="@+id/itemTotal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="₱ 1,200"
                     android:textColor="@color/amber_600"
                     android:textSize="14sp"
                     android:textStyle="bold"
@@ -137,14 +149,21 @@
             </LinearLayout>
 
             <!-- Remove Button -->
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/removeButton"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginTop="6dp"
                 android:text="Remove"
                 android:textSize="11sp"
-                android:padding="4dp" />
+                android:textColor="@color/error_red"
+                android:padding="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                app:rippleColor="@color/error_red"
+                app:iconTint="@color/error_red" />
 
         </LinearLayout>
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

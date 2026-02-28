@@ -118,7 +118,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
     const snapshot = await query.get();
 
-    const products = snapshot.docs.map((doc) => {
+    const rawProducts = snapshot.docs.map((doc) => {
       const data = doc.data();
       return convertFirestoreDocToJSON({
         id: doc.id,
@@ -126,7 +126,40 @@ export const getAllProducts = asyncHandler(async (req, res) => {
       });
     });
 
-    // Cache the fresh results
+    // Enrich products with seller delivery & payment settings from the users collection
+    // These fields live on the seller profile, not on the product document
+    const sellerIds = [...new Set(rawProducts.map((p) => p.createdBy).filter(Boolean))];
+    let sellerMap = {};
+    if (sellerIds.length > 0) {
+      try {
+        const sellerRefs = sellerIds.map((id) => db.collection('users').doc(id));
+        const sellerDocs = await db.getAll(...sellerRefs);
+        sellerDocs.forEach((doc) => {
+          if (doc.exists) {
+            const d = doc.data();
+            sellerMap[doc.id] = {
+              allowShipping: d.allowShipping !== false,
+              allowPickup:   d.allowPickup === true,
+              allowCod:      d.allowCod !== false,
+              allowGcash:    d.allowGcash === true,
+            };
+          }
+        });
+        console.log(`✅ Enriched products with delivery data for ${sellerIds.length} seller(s)`);
+      } catch (sellerErr) {
+        console.warn('⚠️ Could not enrich seller delivery data:', sellerErr.message);
+      }
+    }
+
+    const products = rawProducts.map((p) => ({
+      ...p,
+      allowShipping: sellerMap[p.createdBy]?.allowShipping ?? true,
+      allowPickup:   sellerMap[p.createdBy]?.allowPickup   ?? false,
+      allowCod:      sellerMap[p.createdBy]?.allowCod      ?? true,
+      allowGcash:    sellerMap[p.createdBy]?.allowGcash    ?? false,
+    }));
+
+    // Cache the enriched results
     productCache.set(cacheKey, {
       data: products,
       timestamp: Date.now(),
@@ -193,10 +226,29 @@ export const getProductById = asyncHandler(async (req, res) => {
       throw new ApiError('Product not found', 404);
     }
 
-    const product = convertFirestoreDocToJSON({
+    let product = convertFirestoreDocToJSON({
       id: doc.id,
       ...doc.data(),
     });
+
+    // Enrich with seller delivery & payment settings
+    if (product.createdBy) {
+      try {
+        const sellerDoc = await db.collection('users').doc(product.createdBy).get();
+        if (sellerDoc.exists) {
+          const d = sellerDoc.data();
+          product = {
+            ...product,
+            allowShipping: d.allowShipping !== false,
+            allowPickup:   d.allowPickup === true,
+            allowCod:      d.allowCod !== false,
+            allowGcash:    d.allowGcash === true,
+          };
+        }
+      } catch (sellerErr) {
+        console.warn('⚠️ Could not enrich seller delivery data:', sellerErr.message);
+      }
+    }
 
     console.log(`✅ Product found: ${product.name}`);
 
@@ -276,7 +328,7 @@ export const createProduct = asyncHandler(async (req, res) => {
  * Clear relevant product cache entries
  * Invalidates cache for affected products
  */
-function invalidateProductCache(createdBy = null) {
+export function invalidateProductCache(createdBy = null) {
   if (createdBy) {
     // Invalidate seller-specific caches
     productCache.delete(`seller_${createdBy}_active`);

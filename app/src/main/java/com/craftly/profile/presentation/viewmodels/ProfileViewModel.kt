@@ -6,6 +6,7 @@ import com.craftly.profile.data.models.ProfileUiState
 import com.craftly.profile.data.models.UpdateProfileRequest
 import com.craftly.profile.data.models.UserProfile
 import com.craftly.profile.data.repository.ProfileRepository
+import com.craftly.core.utils.ErrorMapper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -28,7 +29,7 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "An error occurred"
+                        error = ErrorMapper.friendlyMessage(error)
                     )
                 }
             )
@@ -37,8 +38,7 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
 
     fun updateProfile(
         userId: String,
-        firstName: String,
-        lastName: String,
+        fullName: String,
         contactNumber: String?,
         streetAddress: String?,
         barangay: String?,
@@ -52,14 +52,15 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
         shopBarangay: String?,
         shopCity: String?,
         allowShipping: Boolean,
-        allowPickup: Boolean
+        allowPickup: Boolean,
+        allowCod: Boolean = true,
+        allowGcash: Boolean = false
     ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null)
 
             val request = UpdateProfileRequest(
-                firstName = firstName,
-                lastName = lastName,
+                fullName = fullName,
                 contactNumber = contactNumber?.takeIf { it.isNotBlank() },
                 streetAddress = streetAddress?.takeIf { it.isNotBlank() },
                 barangay = barangay?.takeIf { it.isNotBlank() },
@@ -73,7 +74,9 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
                 shopBarangay = shopBarangay?.takeIf { it.isNotBlank() },
                 shopCity = shopCity?.takeIf { it.isNotBlank() },
                 allowShipping = allowShipping,
-                allowPickup = allowPickup
+                allowPickup = allowPickup,
+                allowCod = allowCod,
+                allowGcash = allowGcash
             )
 
             repository.updateUserProfile(userId, request).fold(
@@ -92,7 +95,7 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        error = error.message ?: "Failed to update profile"
+                        error = ErrorMapper.friendlyMessage(error)
                     )
                 }
             )

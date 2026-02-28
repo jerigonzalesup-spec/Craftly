@@ -217,7 +217,12 @@ export const createOrder = asyncHandler(async (req, res) => {
       shippingAddress,
       deliveryFee,
       paymentMethod,
-      paymentStatus: 'paid', // Mark all orders as paid immediately - payment validated in checkout
+      // GCash with receipt → seller must verify before marking paid
+      // GCash without receipt → unpaid (buyer hasn't sent payment yet)
+      // COD → unpaid until the buyer pays on delivery
+      paymentStatus: paymentMethod === 'gcash'
+        ? (receiptImageUrl ? 'pending_verification' : 'unpaid')
+        : 'unpaid',
       receiptImageUrl: receiptImageUrl || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -672,7 +677,7 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
     throw new ApiError('User ID is required', 401);
   }
 
-  const validPaymentStatuses = ['unpaid', 'pending', 'paid'];
+  const validPaymentStatuses = ['unpaid', 'pending_verification', 'paid'];
   if (!validPaymentStatuses.includes(paymentStatus)) {
     throw new ApiError(`Invalid payment status. Must be one of: ${validPaymentStatuses.join(', ')}`, 400);
   }
@@ -711,7 +716,9 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
       updatedAt: new Date().toISOString(),
     };
 
-    if (paymentStatus === 'paid' && orderData.orderStatus === 'pending') {
+    // When seller approves a GCash receipt (pending_verification → paid) or
+    // manually marks COD as paid (pending → paid), move order to processing
+    if (paymentStatus === 'paid' && ['pending', 'pending_verification'].includes(orderData.orderStatus)) {
       updates.orderStatus = 'processing';
     }
 

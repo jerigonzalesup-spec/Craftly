@@ -8,13 +8,29 @@
     android:orientation="vertical"
     tools:context=".profile.presentation.ui.ProfileFragment">
 
-    <!-- Header Section -->
+    <!-- Header Section with gradient-like effect -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/dark_bg_secondary"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:paddingTop="36dp"
+        android:paddingBottom="32dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:gravity="center_horizontal"
+        android:minHeight="200dp">
+
+        <!-- Profile Avatar -->
+        <ImageView
+            android:id="@+id/profileAvatarImage"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/profile_button_background"
+            android:contentDescription="Profile photo"
+            android:scaleType="centerCrop"
+            android:elevation="4dp" />
 
         <TextView
             android:id="@+id/profileHeaderText"
@@ -23,7 +39,15 @@
             android:text="Welcome"
             android:textColor="@color/amber_600"
             android:textSize="28sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:layout_marginBottom="6dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Manage your profile and preferences"
+            android:textColor="@color/dark_text_secondary"
+            android:textSize="14sp" />
     </LinearLayout>
 
     <!-- Loading State -->
@@ -54,16 +78,87 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <!-- Account Information Section -->
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Seller Dashboard Card (visible only for sellers) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/sellerDashboardCard"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Account Information"
-                    android:textColor="@color/dark_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🏪 Seller Dashboard"
+                            android:textColor="@color/amber_600"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="12dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/myProductsButton"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="8dp"
+                                android:text="📦 My Products"
+                                android:textSize="13sp"
+                                app:cornerRadius="8dp"
+                                app:backgroundTint="@color/amber_700"
+                                android:textColor="@color/white" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/mySalesButton"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:text="📋 My Sales"
+                                android:textSize="13sp"
+                                app:cornerRadius="8dp"
+                                app:backgroundTint="@color/amber_700"
+                                android:textColor="@color/white" />
+
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Account Information Section Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="👤 Account Information"
+                            android:textColor="@color/amber_600"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="16dp" />
 
                 <!-- First Name -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -137,7 +232,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Contact Number (Optional)"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="0dp"
                     app:boxBackgroundColor="@color/dark_bg_secondary"
                     app:boxCornerRadiusTopStart="8dp"
                     app:boxCornerRadiusTopEnd="8dp"
@@ -154,23 +249,32 @@
                         android:inputType="phone" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@color/dark_text_secondary"
-                    android:alpha="0.2"
-                    android:layout_marginVertical="16dp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                <!-- Shipping Address Section -->
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Shipping Address Section Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Shipping Address"
-                    android:textColor="@color/dark_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="16dp"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📍 Shipping Address"
+                            android:textColor="@color/amber_600"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="16dp" />
 
                 <!-- Street Address -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -265,7 +369,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Country (Optional)"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="0dp"
                     app:boxBackgroundColor="@color/dark_bg_secondary"
                     app:boxCornerRadiusTopStart="8dp"
                     app:boxCornerRadiusTopEnd="8dp"
@@ -282,23 +386,34 @@
                         android:inputType="text" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@color/dark_text_secondary"
-                    android:alpha="0.2"
-                    android:layout_marginVertical="16dp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                <!-- GCash Payment Section -->
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- GCash Payment Section Card - Sellers only -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/gcashPaymentCard"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="GCash Payment (For Sellers)"
-                    android:textColor="@color/dark_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💳 GCash Payment (For Sellers)"
+                            android:textColor="@color/amber_600"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="16dp" />
 
                 <!-- GCash Name -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -327,7 +442,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="GCash Number (Optional)"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="0dp"
                     app:boxBackgroundColor="@color/dark_bg_secondary"
                     app:boxCornerRadiusTopStart="8dp"
                     app:boxCornerRadiusTopEnd="8dp"
@@ -344,23 +459,34 @@
                         android:inputType="phone" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@color/dark_text_secondary"
-                    android:alpha="0.2"
-                    android:layout_marginVertical="16dp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                <!-- Shop Profile Section -->
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Shop Profile Section Card - Sellers only -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/shopProfileCard"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Shop Profile (For Sellers)"
-                    android:textColor="@color/dark_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🏪 Shop Profile (For Sellers)"
+                            android:textColor="@color/amber_600"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="16dp" />
 
                 <!-- Shop Name -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -433,7 +559,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Shop City (Optional)"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="0dp"
                     app:boxBackgroundColor="@color/dark_bg_secondary"
                     app:boxCornerRadiusTopStart="8dp"
                     app:boxCornerRadiusTopEnd="8dp"
@@ -450,123 +576,34 @@
                         android:inputType="text" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- Developer Settings -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Developer Settings"
-                    android:textColor="@color/amber_600"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"
-                    android:layout_marginTop="8dp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                <!-- Current API Endpoint -->
-                <TextView
-                    android:id="@+id/currentApiUrlText"
+                <!-- Delivery Methods Card - Sellers only -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/deliveryMethodsCard"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="API Endpoint: Loading..."
-                    android:textColor="@color/dark_text_secondary"
-                    android:textSize="12sp"
-                    android:layout_marginBottom="12dp"
-                    android:padding="8dp"
-                    android:background="@color/dark_bg_secondary"
-                    android:lineSpacingMultiplier="1.2" />
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
 
-                <!-- Quick Endpoint Buttons -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:layout_marginBottom="12dp"
-                    android:spacing="8dp">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/emulatorButton"
-                        android:layout_width="0dp"
-                        android:layout_height="40dp"
-                        android:layout_weight="1"
-                        android:text="Emulator"
-                        android:textSize="12sp"
-                        app:cornerRadius="6dp"
-                        app:backgroundTint="@color/dark_text_secondary"
-                        android:layout_marginEnd="4dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/deviceButton"
-                        android:layout_width="0dp"
-                        android:layout_height="40dp"
-                        android:layout_weight="1"
-                        android:text="Device"
-                        android:textSize="12sp"
-                        app:cornerRadius="6dp"
-                        app:backgroundTint="@color/dark_text_secondary"
-                        android:layout_marginEnd="4dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/resetButton"
-                        android:layout_width="0dp"
-                        android:layout_height="40dp"
-                        android:layout_weight="1"
-                        android:text="Auto"
-                        android:textSize="12sp"
-                        app:cornerRadius="6dp"
-                        app:backgroundTint="@color/dark_text_secondary" />
-                </LinearLayout>
-
-                <!-- Custom IP Input -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Custom IP (Optional)"
-                    android:layout_marginBottom="12dp"
-                    app:boxBackgroundColor="@color/dark_bg_secondary"
-                    app:boxCornerRadiusTopStart="8dp"
-                    app:boxCornerRadiusTopEnd="8dp"
-                    app:boxCornerRadiusBottomStart="8dp"
-                    app:boxCornerRadiusBottomEnd="8dp"
-                    app:boxStrokeColor="@color/dark_text_secondary"
-                    app:boxStrokeWidth="1dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/customIpInput"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textColor="@color/dark_text_primary"
-                        android:inputType="text"
-                        android:hint="e.g., http://custom.server:5000" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                <!-- Apply Custom IP Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/applyCustomIpButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:text="Apply Custom IP"
-                    android:textSize="12sp"
-                    app:cornerRadius="6dp"
-                    app:backgroundTint="@color/amber_700"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="@color/dark_text_secondary"
-                    android:alpha="0.2"
-                    android:layout_marginVertical="16dp" />
-
-                <!-- Delivery Methods -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Delivery Methods"
-                    android:textColor="@color/dark_text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="12dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🚚 Delivery Methods"
+                            android:textColor="@color/amber_600"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="16dp" />
 
                 <!-- Allow Shipping -->
                 <LinearLayout
@@ -596,7 +633,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginBottom="24dp">
+                    android:layout_marginBottom="0dp">
 
                     <CheckBox
                         android:id="@+id/allowPickupCheckbox"
@@ -611,6 +648,117 @@
                         android:textColor="@color/dark_text_primary"
                         android:textSize="14sp" />
                 </LinearLayout>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                <!-- Payment Methods Card - only shown to sellers -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/paymentMethodsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone"
+                    app:cardElevation="4dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@color/dark_bg_secondary">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💳 Payment Methods"
+                            android:textColor="@color/amber_600"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Choose which payment methods you accept from buyers."
+                            android:textColor="@color/dark_text_secondary"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="16dp" />
+
+                        <!-- Allow COD -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="12dp">
+
+                            <CheckBox
+                                android:id="@+id/allowCodCheckbox"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="12dp" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="💵 Cash on Delivery (COD)"
+                                    android:textColor="@color/dark_text_primary"
+                                    android:textSize="14sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Buyer pays in cash upon receiving the order"
+                                    android:textColor="@color/dark_text_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Allow GCash -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <CheckBox
+                                android:id="@+id/allowGcashCheckbox"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="12dp" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="📱 GCash"
+                                    android:textColor="@color/dark_text_primary"
+                                    android:textSize="14sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Buyer sends payment via GCash and uploads receipt"
+                                    android:textColor="@color/dark_text_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
         </LinearLayout>

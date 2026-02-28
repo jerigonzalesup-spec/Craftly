@@ -1,6 +1,7 @@
 package com.craftly.products.data.models
 
 import com.squareup.moshi.Json
+import java.io.Serializable
 
 data class Product(
     val id: String = "",
@@ -15,6 +16,8 @@ data class Product(
     val materialsUsed: String = "",
     val allowShipping: Boolean = false,
     val allowPickup: Boolean = false,
+    val allowCod: Boolean = true,
+    val allowGcash: Boolean = false,
     val createdAt: String = "",
     val sellerName: String? = null,
     val rating: Double? = null,
@@ -24,7 +27,7 @@ data class Product(
     
     // Optional fields that might come from Firestore
     val updatedAt: String? = null
-)
+) : Serializable
 
 data class ProductStats(
     val averageRating: Double,

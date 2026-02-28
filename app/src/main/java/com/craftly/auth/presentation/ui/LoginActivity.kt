@@ -1,11 +1,14 @@
 package com.craftly.auth.presentation.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.craftly.MainActivity
 import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.auth.data.repository.AuthRepository
@@ -16,24 +19,46 @@ import com.craftly.auth.presentation.viewmodels.LoginViewModel
 import com.craftly.core.network.NetworkConfig
 import com.craftly.core.network.RetrofitClient
 import com.craftly.databinding.ActivityLoginBinding
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private lateinit var viewModel: LoginViewModel
+    private lateinit var repository: AuthRepository
+
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    handleGoogleIdToken(idToken, account.email ?: "", account.displayName, account.photoUrl?.toString())
+                } else {
+                    showError("Google Sign-In failed: no ID token received")
+                }
+            } catch (e: ApiException) {
+                showError("Google Sign-In failed (code ${e.statusCode})")
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize network configuration
         NetworkConfig.init(this)
 
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize ViewModel with dependencies
         val apiService = RetrofitClient.create()
         val prefsManager = SharedPreferencesManager(this)
-        val repository = AuthRepository(apiService, prefsManager)
+        repository = AuthRepository(apiService, prefsManager)
         val loginUseCase = LoginUseCase(repository)
         viewModel = ViewModelProvider(this, LoginViewModelFactory(loginUseCase, repository)).get(LoginViewModel::class.java)
 
@@ -53,11 +78,15 @@ class LoginActivity : AppCompatActivity() {
                 startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
             }
 
+            forgotPasswordLink.setOnClickListener {
+                startActivity(Intent(this@LoginActivity, ForgotPasswordActivity::class.java))
+            }
+
             googleSignInButton.setOnClickListener {
                 signInWithGoogle()
             }
 
-            passwordEditText.setOnFocusChangeListener { _, hasFocus ->
+            passwordEditText.setOnFocusChangeListener { _, _ ->
                 viewModel.clearErrors()
             }
         }
@@ -76,7 +105,7 @@ class LoginActivity : AppCompatActivity() {
         viewModel.event.observe(this) { event ->
             when (event) {
                 is AuthEvent.NavigateToHome -> navigateToHome()
-                is AuthEvent.NavigateToSeller -> navigateToSeller()
+                is AuthEvent.NavigateToSeller -> navigateToHome()
                 is AuthEvent.NavigateToAdmin -> navigateToAdmin()
                 is AuthEvent.ShowError -> showErrorToast(event.message)
             }
@@ -92,26 +121,18 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun navigateBasedOnRole(user: com.craftly.auth.data.models.User) {
-        when {
-            user.roles.contains("admin") -> navigateToAdmin()
-            user.roles.contains("seller") -> navigateToSeller()
-            else -> navigateToHome()
-        }
+        navigateToHome()
     }
 
     private fun navigateToHome() {
-        startActivity(Intent(this, MainActivity::class.java))
-        finish()
-    }
-
-    private fun navigateToSeller() {
-        showErrorToast("Seller dashboard - not implemented yet")
-        startActivity(Intent(this, MainActivity::class.java))
+        startActivity(Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
         finish()
     }
 
     private fun navigateToAdmin() {
-        showErrorToast("Admin dashboard - not implemented yet")
+        // Admin role is managed via the web dashboard only
         startActivity(Intent(this, MainActivity::class.java))
         finish()
     }
@@ -132,16 +153,32 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun signInWithGoogle() {
-        Toast.makeText(
-            this,
-            "Google Sign-In requires Firebase configuration. Please configure google-services.json first.",
-            Toast.LENGTH_LONG
-        ).show()
-        // TODO: Implement Google Sign-In with Google Play Services
-        // This requires:
-        // 1. google-services.json in the app directory
-        // 2. Google OAuth 2.0 credentials configured in Google Cloud Console
-        // 3. SHA-256 fingerprint registered for the app
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(com.craftly.R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        val client = GoogleSignIn.getClient(this, gso)
+        // Sign out first to allow account picker every time
+        client.signOut().addOnCompleteListener {
+            googleSignInLauncher.launch(client.signInIntent)
+        }
+    }
+
+    private fun handleGoogleIdToken(
+        idToken: String,
+        email: String,
+        displayName: String?,
+        photoURL: String?
+    ) {
+        showLoading()
+        lifecycleScope.launch {
+            val result = repository.signInWithGoogle(idToken, email, displayName, photoURL)
+            result.onSuccess { user ->
+                navigateToHome()
+            }.onFailure { e ->
+                showError(e.message ?: "Google Sign-In failed")
+            }
+        }
     }
 }
 

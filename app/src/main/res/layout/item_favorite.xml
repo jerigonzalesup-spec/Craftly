@@ -118,7 +118,10 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/removeButton"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
+                android:minHeight="0dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:text="Remove from Favorites"
                 android:textSize="12sp"
                 app:backgroundTint="@color/red_500"

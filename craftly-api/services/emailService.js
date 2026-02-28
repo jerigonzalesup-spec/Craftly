@@ -1,5 +1,8 @@
 import nodemailer from 'nodemailer';
 
+// Display name shown in recipient's inbox (e.g. "Craftly" instead of raw email)
+const CRAFTLY_SENDER = `"Craftly" <${process.env.GMAIL_USER}>`;
+
 // Create transporter for Gmail SMTP
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -25,16 +28,17 @@ transporter.verify((error, success) => {
  */
 export const sendPasswordResetEmail = async (email, resetLink) => {
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: 'Craftly - Password Reset Request',
+    subject: 'Reset your Craftly password',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #333;">Password Reset Request</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #1a1a1a;">Password Reset Request</h2>
           <p>We received a request to reset your password. Click the link below to proceed:</p>
           <p style="margin: 20px 0;">
             <a href="${resetLink}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
@@ -45,8 +49,8 @@ export const sendPasswordResetEmail = async (email, resetLink) => {
           <p style="color: #999; font-size: 12px; margin-top: 20px;">This link expires in 24 hours.</p>
           <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,
@@ -69,16 +73,17 @@ export const sendPasswordResetEmail = async (email, resetLink) => {
  */
 export const sendPasswordResetCode = async (email, code) => {
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: 'Craftly - Password Reset Code',
+    subject: 'Your Craftly password reset code',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #333;">Password Reset Code</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #1a1a1a;">Password Reset Code</h2>
           <p>We received a request to reset your password. Use this code to proceed:</p>
           
           <div style="background-color: #e3f2fd; padding: 20px; border-radius: 4px; margin: 20px 0; text-align: center;">
@@ -95,8 +100,8 @@ export const sendPasswordResetCode = async (email, code) => {
 
           <p style="color: #999; font-size: 12px; margin-top: 20px;">If you didn't request this, please ignore this email and your account is safe.</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,
@@ -119,16 +124,17 @@ export const sendPasswordResetCode = async (email, code) => {
  */
 export const sendTotpSetupEmail = async (email, appName = 'Craftly') => {
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: 'Craftly - Two-Factor Authentication Enabled',
+    subject: 'Two-factor authentication enabled on your Craftly account',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #333;">Two-Factor Authentication Enabled</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #1a1a1a;">Two-Factor Authentication Enabled</h2>
           <p>Your two-factor authentication has been successfully set up. You'll now need to enter a code from your authenticator app when signing in.</p>
           
           <div style="background-color: #e8f5e9; padding: 15px; border-radius: 4px; margin: 20px 0;">
@@ -145,8 +151,8 @@ export const sendTotpSetupEmail = async (email, appName = 'Craftly') => {
 
           <p style="color: #999; font-size: 12px; margin-top: 20px;">For security questions, visit your account settings.</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,
@@ -169,16 +175,17 @@ export const sendTotpSetupEmail = async (email, appName = 'Craftly') => {
  */
 export const sendEmailVerificationCode = async (email, code) => {
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: 'Craftly - Email Verification Code',
+    subject: 'Verify your Craftly email address',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #333;">Verify Your Email</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #1a1a1a;">Verify Your Email</h2>
           <p>Thank you for registering with Craftly. Enter this code to complete your account setup:</p>
 
           <div style="background-color: #e3f2fd; padding: 20px; border-radius: 4px; margin: 20px 0; text-align: center;">
@@ -188,8 +195,8 @@ export const sendEmailVerificationCode = async (email, code) => {
 
           <p style="color: #666;">This code is valid for 2 minutes. If you didn't register, you can safely ignore this email.</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,
@@ -216,16 +223,17 @@ export const sendBackupCodesEmail = async (email, backupCodes) => {
     .join('');
 
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: 'Craftly - Backup Codes for Two-Factor Authentication',
+    subject: 'Your Craftly backup codes',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #333;">Your Backup Codes</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #1a1a1a;">Your Backup Codes</h2>
           <p style="color: #d32f2f; font-weight: bold;">⚠️ Important: Keep these codes safe and private</p>
           
           <p>Each code can be used once if you lose access to your authenticator app. Save them in a secure location.</p>
@@ -239,8 +247,8 @@ export const sendBackupCodesEmail = async (email, backupCodes) => {
             If you didn't request this email, your account may have been compromised. Please secure your account immediately.
           </p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,
@@ -265,16 +273,17 @@ export const sendSellerApprovalEmail = async (email, shopName) => {
   const dashboardLink = `${process.env.FRONTEND_URL}/dashboard`;
 
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: `✅ Welcome! Your Shop "${shopName}" is Approved`,
+    subject: `Your shop "${shopName}" is approved — welcome to Craftly!`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #2e7d32;">✅ Congratulations!</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #2e7d32;">Congratulations!</h2>
           <p>Great news! Your seller application for <strong>"${shopName}"</strong> has been approved. Your shop is now live!</p>
 
           <div style="background-color: #e8f5e9; padding: 15px; border-radius: 4px; margin: 20px 0;">
@@ -299,8 +308,8 @@ export const sendSellerApprovalEmail = async (email, shopName) => {
 
           <p style="color: #999; font-size: 12px; margin-top: 20px;">Thank you for joining the Craftly community!</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,
@@ -326,16 +335,17 @@ export const sendSellerRejectionEmail = async (email, shopName, rejectionReason)
   const reapplyLink = `${process.env.FRONTEND_URL}/profile`;
 
   const mailOptions = {
-    from: process.env.GMAIL_USER,
+    from: CRAFTLY_SENDER,
     to: email,
-    subject: `ℹ️ Application Update: "${shopName}"`,
+    subject: `Update on your Craftly seller application`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-          <h1 style="color: #333;">Craftly</h1>
+        <div style="background-color: #D97706; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-family: Georgia, serif; letter-spacing: 1px;">Craftly</h1>
+          <p style="color: #fef3c7; margin: 4px 0 0 0; font-size: 13px;">Handcrafted goods from Dagupan</p>
         </div>
-        <div style="padding: 20px;">
-          <h2 style="color: #333;">Application Update</h2>
+        <div style="padding: 28px;">
+          <h2 style="color: #1a1a1a;">Application Update</h2>
           <p>Thank you for applying to become a seller on Craftly.</p>
 
           <div style="background-color: #fff3e0; padding: 15px; border-radius: 4px; margin: 20px 0;">
@@ -364,8 +374,8 @@ export const sendSellerRejectionEmail = async (email, shopName, rejectionReason)
 
           <p style="color: #999; font-size: 12px; margin-top: 20px;">We hope to see you back soon!</p>
         </div>
-        <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
-          <p>&copy; 2024 Craftly. All rights reserved.</p>
+        <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
+          <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
         </div>
       </div>
     `,

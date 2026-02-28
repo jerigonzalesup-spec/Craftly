@@ -37,7 +37,7 @@ class CartRepository(
         return try {
             val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
-            // Get current cart, add item, and save full cart
+            // Get current cart
             val currentCartResult = getCart()
             if (currentCartResult.isFailure) {
                 return Result.failure(currentCartResult.exceptionOrNull() ?: Exception("Failed to fetch cart"))
@@ -46,11 +46,42 @@ class CartRepository(
             val currentCart = currentCartResult.getOrNull() ?: return Result.failure(Exception("Cart is null"))
             val items = currentCart.data?.items?.toMutableList() ?: mutableListOf()
 
-            // Check if item already exists and update quantity, or add new item
+            // VALIDATION 0: Prevent sellers from adding their own products to cart
+            val currentUserId = prefsManager.getUser()?.uid
+            if (!product.createdBy.isNullOrEmpty() && product.createdBy == currentUserId) {
+                return Result.failure(
+                    Exception("You cannot add your own product to your cart.")
+                )
+            }
+
+            // VALIDATION 1: Check single seller constraint
+            if (items.isNotEmpty() && items[0].createdBy != product.createdBy) {
+                return Result.failure(
+                    Exception("You can only purchase items from one seller at a time. Please checkout your current order or clear your cart.")
+                )
+            }
+
+            // VALIDATION 2: Check if item already exists and update quantity
             val existingIndex = items.indexOfFirst { it.productId == product.productId }
             if (existingIndex >= 0) {
-                items[existingIndex] = items[existingIndex].copy(quantity = items[existingIndex].quantity + product.quantity)
+                val existingItem = items[existingIndex]
+                val newQuantity = existingItem.quantity + product.quantity
+
+                // Check if new quantity exceeds stock
+                if (newQuantity > existingItem.stock) {
+                    return Result.failure(
+                        Exception("Cannot add that many items. Only ${existingItem.stock} available. You already have ${existingItem.quantity} in cart.")
+                    )
+                }
+
+                items[existingIndex] = existingItem.copy(quantity = newQuantity)
             } else {
+                // VALIDATION 3: Check stock for new item
+                if (product.quantity > product.stock) {
+                    return Result.failure(
+                        Exception("Cannot add that many items. Only ${product.stock} available in stock.")
+                    )
+                }
                 items.add(product)
             }
 
@@ -69,6 +100,11 @@ class CartRepository(
         return try {
             val userId = prefsManager.getUser()?.uid ?: return Result.failure(Exception("User not logged in"))
 
+            // Validate quantity is at least 1
+            if (quantity < 1) {
+                return Result.failure(Exception("Quantity must be at least 1"))
+            }
+
             // Get current cart, update item quantity, and save
             val currentCartResult = getCart()
             if (currentCartResult.isFailure) {
@@ -78,10 +114,17 @@ class CartRepository(
             val currentCart = currentCartResult.getOrNull() ?: return Result.failure(Exception("Cart is null"))
             val items = currentCart.data?.items?.toMutableList() ?: mutableListOf()
 
-            // Find and update item
-            val index = items.indexOfFirst { it.id == itemId }
+            // Find and validate item by productId (id field may be empty)
+            val index = items.indexOfFirst { it.productId == itemId || (it.id.isNotEmpty() && it.id == itemId) }
             if (index >= 0) {
-                items[index] = items[index].copy(quantity = quantity)
+                val item = items[index]
+                // Check if new quantity exceeds stock
+                if (quantity > item.stock) {
+                    return Result.failure(
+                        Exception("Cannot update quantity. Only ${item.stock} available in stock.")
+                    )
+                }
+                items[index] = item.copy(quantity = quantity)
             } else {
                 return Result.failure(Exception("Item not found in cart"))
             }
@@ -110,8 +153,8 @@ class CartRepository(
             val currentCart = currentCartResult.getOrNull() ?: return Result.failure(Exception("Cart is null"))
             val items = currentCart.data?.items?.toMutableList() ?: mutableListOf()
 
-            // Remove item by id
-            items.removeAll { it.id == itemId }
+            // Remove item by productId (id field may be empty)
+            items.removeAll { it.productId == itemId || (it.id.isNotEmpty() && it.id == itemId) }
 
             val request = SaveCartRequest(items)
             val updatedCart = apiService.saveCart(userId, request)

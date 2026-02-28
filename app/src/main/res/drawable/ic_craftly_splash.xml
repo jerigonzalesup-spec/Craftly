@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Craftly Splash Logo — large combined icon for SplashActivity.
+    ViewBox: 200×200. Amber rounded-square background + white C arc + needle.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Amber rounded-square background -->
+    <path
+        android:pathData="M40,0L160,0Q200,0 200,40L200,160Q200,200 160,200L40,200Q0,200 0,160L0,40Q0,0 40,0Z"
+        android:fillColor="#D97706" />
+
+    <!-- Inner radial glow — lighter amber at center -->
+    <path
+        android:pathData="M100,100m-70,0a70,70 0,1,0 140,0a70,70 0,1,0 -140,0"
+        android:fillColor="#F59E0B"
+        android:fillAlpha="0.28" />
+
+    <!-- ── The "C" arc ── -->
+    <!-- Drop shadow (slight dark offset behind C) -->
+    <path
+        android:pathData="M133,67 A46,46 0 1,0 133,133"
+        android:strokeWidth="17"
+        android:strokeColor="#33000000"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:translateX="1.5"
+        android:translateY="2.0" />
+
+    <!-- Main bold C arc: center (100,100), radius 46, opens to the right -->
+    <path
+        android:pathData="M133,67 A46,46 0 1,0 133,133"
+        android:strokeWidth="16"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+
+    <!-- ── Needle ── -->
+    <!-- Body: dart/triangle shape from C top-gap pointing up-right -->
+    <path
+        android:pathData="M129.5,63.5 L136.5,70 L157,45 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Eye: amber oval punched in the needle body -->
+    <path
+        android:pathData="M147,54m-5,0a5,5 0,1,0 10,0a5,5 0,1,0 -10,0"
+        android:fillColor="#D97706" />
+
+    <!-- Thread: short amber-gold line from eye down to C arc opening -->
+    <path
+        android:pathData="M143.5,58 L136,65"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FCD34D"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round" />
+
+    <!-- Decorative stitch dots — three small amber dots trailing the C lower end -->
+    <path
+        android:pathData="M137,133m-4,0a4,4 0,1,0 8,0a4,4 0,1,0 -8,0"
+        android:fillColor="#FCD34D"
+        android:fillAlpha="0.7" />
+    <path
+        android:pathData="M142,142m-3,0a3,3 0,1,0 6,0a3,3 0,1,0 -6,0"
+        android:fillColor="#FCD34D"
+        android:fillAlpha="0.5" />
+    <path
+        android:pathData="M148,150m-2,0a2,2 0,1,0 4,0a2,2 0,1,0 -4,0"
+        android:fillColor="#FCD34D"
+        android:fillAlpha="0.3" />
+
+</vector>

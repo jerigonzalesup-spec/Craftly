@@ -2,33 +2,57 @@ package com.craftly.core.network
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 
 object NetworkConfig {
     private const val PREFS_NAME = "network_config"
     private const val API_URL_KEY = "api_url"
     private const val CUSTOM_IP_KEY = "custom_ip"
 
-    // Standard localhost - works on both emulator and physical device with adb reverse
-    const val LOCAL_URL = "http://localhost:5000"
-    const val LOCALHOST_URL = "http://127.0.0.1:5000"
-    const val DEFAULT_URL = LOCAL_URL
+    // URLs for different scenarios
+    const val LOCALHOST_URL = "http://localhost:5000/"           // Physical device with adb reverse
+    const val EMULATOR_URL  = "http://10.0.2.2:5000/"           // Android emulator
+
+    // ─── PRODUCTION URL ──────────────────────────────────────────────────────
+    // After deploying craftly-api to Railway:
+    //   1. Go to your Railway project dashboard
+    //   2. Click the deployed service → Settings → Domains → copy the URL
+    //   3. Paste it here (must end with a /)
+    // Example: "https://craftly-api-production.up.railway.app/"
+    const val PRODUCTION_URL = ""   // ← FILL THIS IN after deploying
+
+    // Real physical devices will use PRODUCTION_URL (if set), otherwise LOCALHOST_URL
+    val DEFAULT_URL get() = if (PRODUCTION_URL.isNotBlank()) PRODUCTION_URL else LOCALHOST_URL
 
     private lateinit var prefs: SharedPreferences
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Clear any old IP-based configurations
-        val storedUrl = prefs.getString(API_URL_KEY, null)
-        if (storedUrl != null && !storedUrl.contains("localhost") && !storedUrl.contains("127.0.0.1")) {
-            // Remove old IP-based config
-            prefs.edit().remove(API_URL_KEY).apply()
-        }
+        // Auto-detect and set appropriate URL
+        val detectedUrl = detectAndSetProperUrl()
+        android.util.Log.d("NetworkConfig", "Initialized with URL: $detectedUrl (Emulator: ${isEmulator()})")
+    }
 
-        // Auto-select localhost on first run
-        if (!prefs.contains(API_URL_KEY)) {
-            setBaseUrl(LOCAL_URL)
+    private fun detectAndSetProperUrl(): String {
+        return when {
+            isEmulator()           -> { setBaseUrl(EMULATOR_URL);                        EMULATOR_URL }
+            PRODUCTION_URL.isNotBlank() -> { setBaseUrl(PRODUCTION_URL);                PRODUCTION_URL }
+            else                   -> { setBaseUrl(LOCALHOST_URL);                       LOCALHOST_URL }
         }
+    }
+
+    private fun isEmulator(): Boolean {
+        // Check multiple emulator indicators
+        return (Build.FINGERPRINT.contains("generic") ||
+                Build.FINGERPRINT.contains("unknown") ||
+                Build.MODEL.contains("google_sdk") ||
+                Build.MODEL.contains("Emulator") ||
+                Build.MODEL.contains("Android SDK") ||
+                Build.MANUFACTURER.contains("Genymotion") ||
+                (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic")) ||
+                "goldfish" == Build.HARDWARE ||
+                "ranchu" == Build.HARDWARE)
     }
 
     fun getBaseUrl(): String {
@@ -42,12 +66,18 @@ object NetworkConfig {
     }
 
     fun setToLocalhost() {
-        setBaseUrl(LOCAL_URL)
+        setBaseUrl(LOCALHOST_URL)
+    }
+
+    fun setToEmulator() {
+        setBaseUrl(EMULATOR_URL)
     }
 
     fun setCustomUrl(url: String) {
-        setBaseUrl(url)
-        saveCustomUrl(url)
+        // Ensure URL ends with /
+        val urlWithSlash = if (url.endsWith("/")) url else "$url/"
+        setBaseUrl(urlWithSlash)
+        saveCustomUrl(urlWithSlash)
     }
 
     fun saveCustomUrl(url: String) {
@@ -59,8 +89,8 @@ object NetworkConfig {
     }
 
     fun resetToDefault() {
-        setBaseUrl(LOCAL_URL)
+        val detectedUrl = detectAndSetProperUrl()
         prefs.edit().remove(CUSTOM_IP_KEY).apply()
+        android.util.Log.d("NetworkConfig", "Reset to default: $detectedUrl")
     }
 }
-

@@ -22,13 +22,14 @@ data class UserProfile(
     val shopCity: String? = null,
     val allowShipping: Boolean = true,
     val allowPickup: Boolean = false,
+    val allowCod: Boolean = true,
+    val allowGcash: Boolean = false,
     val roles: List<String> = listOf("buyer")
 )
 
 // Request Models
 data class UpdateProfileRequest(
-    val firstName: String,
-    val lastName: String,
+    val fullName: String,
     val contactNumber: String? = null,
     val streetAddress: String? = null,
     val barangay: String? = null,
@@ -42,7 +43,9 @@ data class UpdateProfileRequest(
     val shopBarangay: String? = null,
     val shopCity: String? = null,
     val allowShipping: Boolean = true,
-    val allowPickup: Boolean = false
+    val allowPickup: Boolean = false,
+    val allowCod: Boolean = true,
+    val allowGcash: Boolean = false
 )
 
 // Response Models
@@ -55,8 +58,7 @@ data class ProfileResponse(
 
 data class UserProfileData(
     val uid: String,
-    val firstName: String,
-    val lastName: String,
+    val fullName: String = "",
     val email: String,
     val contactNumber: String? = null,
     val streetAddress: String? = null,
@@ -72,7 +74,9 @@ data class UserProfileData(
     val shopCity: String? = null,
     val allowShipping: Boolean = true,
     val allowPickup: Boolean = false,
-    val roles: List<String> = listOf("buyer")
+    val allowCod: Boolean = true,
+    val allowGcash: Boolean = false,
+    val role: String = "buyer"
 )
 
 // UI State

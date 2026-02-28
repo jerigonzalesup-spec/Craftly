@@ -15,20 +15,38 @@ export default function MyOrdersPage() {
   const navigate = useNavigate();
   const { orders, loading, error } = useUserOrders(user?.uid);
 
+  useEffect(() => {
+    if (!userLoading && !user) {
+      navigate('/login');
+    }
+  }, [user, userLoading, navigate]);
+
   const getStatusVariant = (status) => {
     switch (status) {
-      case 'pending':
-        return 'secondary';
-      case 'processing':
-        return 'outline';
-      case 'shipped':
-        return 'default';
-      case 'delivered':
-        return 'default';
-      case 'cancelled':
-        return 'destructive';
-      default:
-        return 'secondary';
+      case 'pending': return 'secondary';
+      case 'processing': return 'outline';
+      case 'shipped': return 'default';
+      case 'delivered': return 'default';
+      case 'cancelled': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
+  const getPaymentVariant = (status) => {
+    switch (status) {
+      case 'paid': return 'default';
+      case 'pending_verification': return 'outline';
+      case 'unpaid': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
+  const getPaymentLabel = (status) => {
+    switch (status) {
+      case 'paid': return 'Payment Confirmed';
+      case 'pending_verification': return 'Receipt Under Review';
+      case 'unpaid': return 'Unpaid';
+      default: return status;
     }
   };
 
@@ -97,9 +115,19 @@ export default function MyOrdersPage() {
                     <TableCell className="hidden md:table-cell font-mono text-xs">{order.id}</TableCell>
                     <TableCell>{formatDate(order.createdAt)}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(order.orderStatus)} className="capitalize">
-                        {order.orderStatus}
-                      </Badge>
+                      <div className="flex flex-col gap-1.5">
+                        <Badge variant={getStatusVariant(order.orderStatus)} className="capitalize">
+                          {order.orderStatus}
+                        </Badge>
+                        {order.paymentMethod === 'gcash' && order.paymentStatus && (
+                          <Badge
+                            variant={getPaymentVariant(order.paymentStatus)}
+                            className="text-xs capitalize whitespace-nowrap"
+                          >
+                            {getPaymentLabel(order.paymentStatus)}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">₱{order.totalAmount?.toFixed(2) || '0.00'}</TableCell>
                     <TableCell className="text-right">

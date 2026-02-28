@@ -1,11 +1,14 @@
 package com.craftly.auth.presentation.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.craftly.MainActivity
 import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.auth.data.repository.AuthRepository
@@ -17,10 +20,34 @@ import com.craftly.auth.presentation.viewmodels.RegisterViewModel
 import com.craftly.core.network.NetworkConfig
 import com.craftly.core.network.RetrofitClient
 import com.craftly.databinding.ActivityRegisterBinding
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.launch
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
     private lateinit var viewModel: RegisterViewModel
+    private lateinit var repository: AuthRepository
+
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    handleGoogleIdToken(idToken, account.email ?: "", account.displayName, account.photoUrl?.toString())
+                } else {
+                    showErrorToast("Google Sign-In failed: no ID token received")
+                }
+            } catch (e: ApiException) {
+                showErrorToast("Google Sign-In failed (code ${e.statusCode})")
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,7 +61,7 @@ class RegisterActivity : AppCompatActivity() {
         // Initialize ViewModel with dependencies
         val apiService = RetrofitClient.create()
         val prefsManager = SharedPreferencesManager(this)
-        val repository = AuthRepository(apiService, prefsManager)
+        repository = AuthRepository(apiService, prefsManager)
         val registerUseCase = RegisterUseCase(repository)
         val verifyEmailUseCase = VerifyEmailUseCase(repository)
         viewModel = ViewModelProvider(this, RegisterViewModelFactory(registerUseCase, verifyEmailUseCase)).get(RegisterViewModel::class.java)
@@ -150,16 +177,30 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun signInWithGoogle() {
-        Toast.makeText(
-            this,
-            "Google Sign-In requires Firebase configuration. Please configure google-services.json first.",
-            Toast.LENGTH_LONG
-        ).show()
-        // TODO: Implement Google Sign-In with Google Play Services
-        // This requires:
-        // 1. google-services.json in the app directory
-        // 2. Google OAuth 2.0 credentials configured in Google Cloud Console
-        // 3. SHA-256 fingerprint registered for the app
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(com.craftly.R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        val client = GoogleSignIn.getClient(this, gso)
+        client.signOut().addOnCompleteListener {
+            googleSignInLauncher.launch(client.signInIntent)
+        }
+    }
+
+    private fun handleGoogleIdToken(
+        idToken: String,
+        email: String,
+        displayName: String?,
+        photoURL: String?
+    ) {
+        lifecycleScope.launch {
+            val result = repository.signInWithGoogle(idToken, email, displayName, photoURL)
+            result.onSuccess {
+                navigateToHome()
+            }.onFailure { e ->
+                showErrorToast(e.message ?: "Google Sign-In failed")
+            }
+        }
     }
 }
 

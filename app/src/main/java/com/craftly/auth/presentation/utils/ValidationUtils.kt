@@ -27,7 +27,15 @@ object ValidationUtils {
 
     fun validatePasswordStrength(password: String): String? {
         val strength = getPasswordStrength(password)
-        return if (strength >= 3) null else "Password is too weak"
+        return when {
+            password.isEmpty() -> "Password is required"
+            password.length < 8 -> "Password must be at least 8 characters"
+            !password.any { it.isUpperCase() } -> "Password must include at least 1 uppercase letter"
+            !password.any { it.isLowerCase() } -> "Password must include at least 1 lowercase letter"
+            !password.any { it.isDigit() } -> "Password must include at least 1 number"
+            !password.any { !it.isLetterOrDigit() } -> "Password must include at least 1 special character (!@#$%^&*)"
+            else -> null
+        }
     }
 
     fun getPasswordStrength(password: String): Int {

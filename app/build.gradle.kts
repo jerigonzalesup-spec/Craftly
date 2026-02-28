@@ -4,6 +4,9 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+import java.io.ByteArrayOutputStream
+
+
 android {
     namespace = "com.craftly"
     compileSdk {
@@ -80,8 +83,59 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.database)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+
+    // OpenStreetMap — free map tiles, no API key required
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+}
+
+// Automatic adb reverse setup for USB debugging
+afterEvaluate {
+    tasks.register("setupAdbReverse") {
+        doLast {
+            // Get the ADB executable path from Android SDK
+            val adb = android.adbExecutable.absolutePath
+            println("Setting up adb reverse for port 5000...")
+
+            // Get list of connected devices
+            val devicesOutput = ByteArrayOutputStream()
+            exec {
+                commandLine(adb, "devices")
+                standardOutput = devicesOutput
+                isIgnoreExitValue = true
+            }
+
+            val devices = devicesOutput.toString().split("\n")
+                .drop(1) // Skip header "List of devices attached"
+                .filter { it.trim().isNotEmpty() && it.contains("device") }
+                .map { it.split("\t")[0].trim() }
+
+            if (devices.isNotEmpty()) {
+                devices.forEach { device ->
+                    println("Setting up adb reverse for device: $device")
+                    exec {
+                        commandLine(adb, "-s", device, "reverse", "tcp:5000", "tcp:5000")
+                        isIgnoreExitValue = true
+                    }
+                }
+                println("✓ adb reverse tcp:5000 tcp:5000 configured for ${devices.size} device(s)")
+            } else {
+                println("⚠️  No devices found online. adb reverse will be set up once device is connected.")
+                // Try anyway without specifying device - it might work if device connects later
+                exec {
+                    commandLine(adb, "reverse", "tcp:5000", "tcp:5000")
+                    isIgnoreExitValue = true
+                }
+            }
+        }
+    }
+
+    // Run setupAdbReverse before installing debug APK
+    tasks.named("installDebug") {
+        dependsOn("setupAdbReverse")
+    }
 }

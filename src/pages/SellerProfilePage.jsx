@@ -6,6 +6,7 @@ import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/button';
 import { useUser } from '../firebase/auth/use-user';
 import { ChevronLeft, Star, MapPin, Truck, MapPinOff } from 'lucide-react';
+import { SellerMap } from '../components/SellerMap';
 
 export default function SellerProfilePage() {
   const params = useParams();
@@ -74,8 +75,11 @@ export default function SellerProfilePage() {
               </div>
               <div className="flex items-center">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                <span className="font-semibold text-foreground">4.5</span>
-                <span className="ml-2">(Based on reviews)</span>
+                <span className="font-semibold text-foreground">
+                  {products.length === 0
+                    ? 'No reviews yet'
+                    : 'See product reviews'}
+                </span>
               </div>
             </div>
 
@@ -160,14 +164,15 @@ export default function SellerProfilePage() {
               </div>
             </div>
 
-            {/* Map Placeholder (Ready for Google Maps integration) */}
-            <div className="border border-input rounded-lg p-6 bg-card flex items-center justify-center min-h-[280px]">
-              <div className="text-center">
-                <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  Map view coming soon
-                </p>
-              </div>
+            {/* OpenStreetMap via Leaflet — no API key needed */}
+            <div className="border border-input rounded-lg overflow-hidden bg-card">
+              <SellerMap
+                address={
+                  seller.shopAddress
+                    ? `${seller.shopAddress}${seller.shopBarangay ? ', ' + seller.shopBarangay : ''}, ${seller.shopCity || 'Dagupan'}`
+                    : seller.shopName || undefined
+                }
+              />
             </div>
           </div>
         </div>

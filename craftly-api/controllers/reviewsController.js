@@ -27,6 +27,11 @@ export const submitReview = asyncHandler(async (req, res) => {
     throw new ApiError('Comment must be between 10 and 500 characters', 400);
   }
 
+  // Prevent sellers from reviewing their own products
+  if (productCreatorId && userId === productCreatorId) {
+    throw new ApiError('You cannot review your own product', 403);
+  }
+
   console.log(`📝 Submitting review for product ${productId} by user ${userId}`);
 
   try {

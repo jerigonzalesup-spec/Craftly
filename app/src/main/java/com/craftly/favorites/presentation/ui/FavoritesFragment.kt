@@ -9,18 +9,21 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
+import com.craftly.R
+import com.craftly.MainActivity
 import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.core.network.RetrofitClient
 import com.craftly.databinding.FragmentFavoritesBinding
 import com.craftly.favorites.data.repository.FavoritesRepository
 import com.craftly.favorites.presentation.viewmodels.FavoritesUiState
 import com.craftly.favorites.presentation.viewmodels.FavoritesViewModel
+import com.craftly.products.data.repository.ProductRepository
 import com.craftly.products.presentation.ui.ProductDetailActivity
 
 class FavoritesFragment : Fragment() {
     private lateinit var binding: FragmentFavoritesBinding
     private lateinit var viewModel: FavoritesViewModel
-    private var favoritesAdapter: FavoritesAdapter? = null
+    private var adapter: FavoriteItemAdapter? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,38 +40,59 @@ class FavoritesFragment : Fragment() {
         setupViewModel()
         setupRecyclerView()
         observeViewModel()
+
         viewModel.loadFavorites()
+
+        // Pull-to-refresh
+        binding.swipeRefreshLayout.setOnRefreshListener { viewModel.loadFavorites() }
+
+        // Empty state CTA — navigate to Browse tab
+        binding.browseFavoritesButton.setOnClickListener {
+            (requireActivity() as? MainActivity)?.bottomNav?.selectedItemId = R.id.nav_browse
+        }
     }
 
     private fun setupViewModel() {
-        val apiService = RetrofitClient.createFavoritesApiService()
         val prefsManager = SharedPreferencesManager(requireContext())
-        val repository = FavoritesRepository(apiService, prefsManager)
+        val favoritesApiService = RetrofitClient.createFavoritesApiService()
+        val favoritesRepository = FavoritesRepository(favoritesApiService, prefsManager)
+        val productApiService = RetrofitClient.createProductApiService()
+        val productRepository = ProductRepository(productApiService)
 
         val factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return FavoritesViewModel(repository) as T
+                return FavoritesViewModel(favoritesRepository, productRepository) as T
             }
         }
-        viewModel = ViewModelProvider(this, factory).get(FavoritesViewModel::class.java)
+        viewModel = ViewModelProvider(this, factory)[FavoritesViewModel::class.java]
     }
 
     private fun setupRecyclerView() {
-        favoritesAdapter = FavoritesAdapter(
-            onItemClick = { favorite ->
-                // Navigate to product detail
+        adapter = FavoriteItemAdapter(
+            onProductClick = { product ->
                 val intent = Intent(requireContext(), ProductDetailActivity::class.java)
-                intent.putExtra("product_id", favorite.productId)
-                startActivity(intent)
+                intent.putExtra("product_id", product.id)
+                val opts = android.app.ActivityOptions.makeCustomAnimation(
+                    requireContext(), R.anim.fragment_slide_in, R.anim.fade_out
+                )
+                startActivity(intent, opts.toBundle())
             },
-            onRemoveClick = { favoriteId, productName ->
-                viewModel.removeFromFavorites(favoriteId, productName)
+            onRemoveClick = { product ->
+                viewModel.removeFromFavorites(product.id, product.name)
             }
+        )
+        val layoutAnim = android.view.animation.AnimationUtils.loadLayoutAnimation(
+            requireContext(), R.anim.layout_fall_down
         )
         binding.favoritesRecyclerView.apply {
             layoutManager = GridLayoutManager(requireContext(), 2)
-            adapter = favoritesAdapter
+            adapter = this@FavoritesFragment.adapter
+            layoutAnimation = layoutAnim
+            itemAnimator = androidx.recyclerview.widget.DefaultItemAnimator().apply {
+                addDuration = 250
+                removeDuration = 200
+            }
         }
     }
 
@@ -76,7 +100,7 @@ class FavoritesFragment : Fragment() {
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             when (state) {
                 is FavoritesUiState.Loading -> showLoading()
-                is FavoritesUiState.Success -> showFavorites(state.favorites.data)
+                is FavoritesUiState.Success -> showFavorites(state.products)
                 is FavoritesUiState.Error -> showError(state.message)
             }
         }
@@ -86,35 +110,44 @@ class FavoritesFragment : Fragment() {
         }
     }
 
-    private fun showLoading() {
-        binding.loadingProgressBar.visibility = View.VISIBLE
-        binding.emptyStateContainer.visibility = View.GONE
-        binding.favoritesRecyclerView.visibility = View.GONE
+    private fun fadeIn(v: View) {
+        if (v.visibility != View.VISIBLE) {
+            v.alpha = 0f; v.visibility = View.VISIBLE
+            v.animate().alpha(1f).setDuration(250).start()
+        }
     }
 
-    private fun showFavorites(favoritesData: com.craftly.favorites.data.models.FavoritesData) {
-        binding.loadingProgressBar.visibility = View.GONE
+    private fun showLoading() {
+        fadeIn(binding.loadingProgressBar)
+        binding.emptyStateContainer.visibility = View.GONE
+        binding.swipeRefreshLayout.visibility = View.GONE
+    }
 
-        if (favoritesData.favorites.isEmpty()) {
-            binding.emptyStateContainer.visibility = View.VISIBLE
-            binding.favoritesRecyclerView.visibility = View.GONE
+    private fun showFavorites(products: List<com.craftly.products.data.models.Product>) {
+        binding.loadingProgressBar.visibility = View.GONE
+        binding.swipeRefreshLayout.isRefreshing = false
+        if (products.isEmpty()) {
+            fadeIn(binding.emptyStateContainer)
+            binding.swipeRefreshLayout.visibility = View.GONE
         } else {
             binding.emptyStateContainer.visibility = View.GONE
-            binding.favoritesRecyclerView.visibility = View.VISIBLE
-            // For now, show a simple message since API returns only product IDs
-            // In a full implementation, fetch product details for each favorited ID
-            Toast.makeText(
-                requireContext(),
-                "You have ${favoritesData.count} favorite products. Go to Marketplace to browse them!",
-                Toast.LENGTH_SHORT
-            ).show()
+            binding.swipeRefreshLayout.visibility = View.VISIBLE
+            adapter?.updateData(products)
+            binding.favoritesRecyclerView.scheduleLayoutAnimation()
         }
     }
 
     private fun showError(message: String) {
         binding.loadingProgressBar.visibility = View.GONE
-        binding.emptyStateContainer.visibility = View.VISIBLE
-        binding.favoritesRecyclerView.visibility = View.GONE
+        binding.swipeRefreshLayout.isRefreshing = false
+        fadeIn(binding.emptyStateContainer)
+        binding.swipeRefreshLayout.visibility = View.GONE
         Toast.makeText(requireContext(), "Error: $message", Toast.LENGTH_LONG).show()
     }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadFavorites()
+    }
 }
+

@@ -2,6 +2,8 @@ package com.craftly.products.presentation.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,6 +25,7 @@ import com.craftly.core.viewmodels.SharedFavoritesViewModelFactory
 import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.cart.data.repository.CartRepository
 import com.craftly.favorites.data.repository.FavoritesRepository
+import com.craftly.R
 import com.craftly.databinding.FragmentMarketplaceBinding
 
 class MarketplaceFragment : Fragment() {
@@ -31,6 +34,10 @@ class MarketplaceFragment : Fragment() {
     private lateinit var cartViewModel: SharedCartViewModel
     private lateinit var favoritesViewModel: SharedFavoritesViewModel
     private lateinit var adapter: ProductAdapter
+    private lateinit var prefsManager: SharedPreferencesManager
+
+    private val searchHandler = Handler(Looper.getMainLooper())
+    private var searchRunnable: Runnable? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,20 +59,20 @@ class MarketplaceFragment : Fragment() {
             ProductsViewModelFactory(repository)
         ).get(ProductsViewModel::class.java)
 
-        // Initialize Shared Cart ViewModel
+        // Initialize Shared Cart ViewModel — scoped to Activity so CartFragment shares same instance
         val cartApiService = RetrofitClient.createCartApiService()
-        val prefsManager = SharedPreferencesManager(requireContext())
+        prefsManager = SharedPreferencesManager(requireContext())
         val cartRepository = CartRepository(cartApiService, prefsManager)
         cartViewModel = ViewModelProvider(
-            this,
+            requireActivity(),
             SharedCartViewModelFactory(cartRepository)
         ).get(SharedCartViewModel::class.java)
 
-        // Initialize Shared Favorites ViewModel
+        // Initialize Shared Favorites ViewModel — scoped to Activity so FavoritesFragment shares same instance
         val favoritesApiService = RetrofitClient.createFavoritesApiService()
         val favoritesRepository = FavoritesRepository(favoritesApiService, prefsManager)
         favoritesViewModel = ViewModelProvider(
-            this,
+            requireActivity(),
             SharedFavoritesViewModelFactory(favoritesRepository)
         ).get(SharedFavoritesViewModel::class.java)
 
@@ -78,8 +85,12 @@ class MarketplaceFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Setup RecyclerView grid layout (2 columns)
+        // Setup RecyclerView grid layout (2 columns) with slide-in animation
         binding.productsRecyclerView.layoutManager = GridLayoutManager(requireContext(), 2)
+        val layoutAnim = android.view.animation.AnimationUtils.loadLayoutAnimation(
+            requireContext(), R.anim.layout_fall_down
+        )
+        binding.productsRecyclerView.layoutAnimation = layoutAnim
 
         // Initialize adapter with add-to-cart functionality
         adapter = ProductAdapter(
@@ -90,15 +101,29 @@ class MarketplaceFragment : Fragment() {
                 startActivity(intent)
             },
             onAddToCartClick = { product ->
-                // Actually call the shared cart ViewModel
-                cartViewModel.quickAddToCart(product, quantity = 1)
+                val currentUserId = prefsManager.getUser()?.uid
+                if (!product.createdBy.isNullOrEmpty() && product.createdBy == currentUserId) {
+                    Toast.makeText(requireContext(), "You cannot add your own product to your cart", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Actually call the shared cart ViewModel
+                    cartViewModel.quickAddToCart(product, quantity = 1)
+                }
             },
             onFavoriteClick = { product, isFavoriting ->
-                if (isFavoriting) {
+                val currentUserId = prefsManager.getUser()?.uid
+                if (!product.createdBy.isNullOrEmpty() && product.createdBy == currentUserId) {
+                    Toast.makeText(requireContext(), "You cannot favorite your own product", Toast.LENGTH_SHORT).show()
+                } else if (isFavoriting) {
                     favoritesViewModel.addToFavorites(product.id, product.name)
                 } else {
                     favoritesViewModel.removeFromFavorites(product.id, product.name)
                 }
+            },
+            currentUserId = prefsManager.getUser()?.uid,
+            onManageClick = { product ->
+                val intent = Intent(requireContext(), SellerProductsActivity::class.java)
+                intent.putExtra("product_id", product.id)
+                startActivity(intent)
             }
         )
         binding.productsRecyclerView.adapter = adapter
@@ -133,16 +158,21 @@ class MarketplaceFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Setup search
+        // Setup search with 400ms debounce
         binding.searchEditText.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                viewModel.updateSearchQuery(s.toString())
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                searchRunnable = Runnable { viewModel.updateSearchQuery(s.toString()) }
+                searchHandler.postDelayed(searchRunnable!!, 400)
             }
 
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
+
+        // Pull-to-refresh
+        binding.swipeRefreshLayout.setOnRefreshListener { viewModel.retry() }
 
         // Setup retry button
         binding.retryButton.setOnClickListener {
@@ -167,13 +197,14 @@ class MarketplaceFragment : Fragment() {
             // Update adapter with filtered products
             adapter.updateData(filteredProducts)
 
-            // Show/hide empty state
+            // Show/hide empty state + trigger layout animation on first load
             if (filteredProducts.isEmpty()) {
                 binding.emptyStateContainer.visibility = View.VISIBLE
                 binding.productsRecyclerView.visibility = View.GONE
             } else {
                 binding.emptyStateContainer.visibility = View.GONE
                 binding.productsRecyclerView.visibility = View.VISIBLE
+                binding.productsRecyclerView.scheduleLayoutAnimation()
             }
         }
 
@@ -193,24 +224,38 @@ class MarketplaceFragment : Fragment() {
         }
     }
 
+    private fun fadeInView(view: View) {
+        if (view.visibility != View.VISIBLE) {
+            view.alpha = 0f
+            view.visibility = View.VISIBLE
+            view.animate().alpha(1f).setDuration(250).start()
+        }
+    }
+
+    private fun hideView(view: View) {
+        view.visibility = View.GONE
+    }
+
     private fun showLoading() {
-        binding.loadingContainer.visibility = View.VISIBLE
-        binding.productsRecyclerView.visibility = View.GONE
-        binding.errorContainer.visibility = View.GONE
-        binding.emptyStateContainer.visibility = View.GONE
+        fadeInView(binding.loadingContainer)
+        hideView(binding.productsRecyclerView)
+        hideView(binding.errorContainer)
+        hideView(binding.emptyStateContainer)
     }
 
     private fun showProducts(products: List<com.craftly.products.data.models.Product>) {
-        binding.loadingContainer.visibility = View.GONE
-        binding.errorContainer.visibility = View.GONE
-        binding.emptyStateContainer.visibility = View.GONE
+        binding.swipeRefreshLayout.isRefreshing = false
+        hideView(binding.loadingContainer)
+        hideView(binding.errorContainer)
+        hideView(binding.emptyStateContainer)
     }
 
     private fun showError(message: String) {
-        binding.loadingProgressBar.visibility = View.GONE
-        binding.productsRecyclerView.visibility = View.GONE
-        binding.emptyStateContainer.visibility = View.GONE
-        binding.errorContainer.visibility = View.VISIBLE
+        binding.swipeRefreshLayout.isRefreshing = false
+        hideView(binding.loadingContainer)
+        hideView(binding.productsRecyclerView)
+        hideView(binding.emptyStateContainer)
+        fadeInView(binding.errorContainer)
         binding.errorMessage.text = message
     }
 }

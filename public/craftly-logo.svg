@@ -1,0 +1,16 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Amber rounded-square background -->
+  <rect width="40" height="40" rx="9" fill="#D97706"/>
+  <!-- Inner glow for depth -->
+  <circle cx="20" cy="20" r="14" fill="#F59E0B" fill-opacity="0.3"/>
+  <!-- Drop shadow on arc -->
+  <path d="M26.5,13.5 A10.5,10.5 0 1,0 26.5,26.5" stroke="rgba(0,0,0,0.2)" stroke-width="4.2" stroke-linecap="round" transform="translate(0.4,0.5)"/>
+  <!-- Bold C arc -->
+  <path d="M26.5,13.5 A10.5,10.5 0 1,0 26.5,26.5" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <!-- Needle body -->
+  <path d="M25.2,12.1 L27.9,14.6 L33.5,6.5 Z" fill="white"/>
+  <!-- Needle eye -->
+  <circle cx="30.8" cy="10.2" r="1.25" fill="#D97706"/>
+  <!-- Thread -->
+  <line x1="29.6" y1="11.4" x2="27.2" y2="13.2" stroke="#FCD34D" stroke-width="0.9" stroke-linecap="round"/>
+</svg>

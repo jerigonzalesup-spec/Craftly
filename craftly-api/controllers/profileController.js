@@ -2,6 +2,7 @@ import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 import { isValidBarangay } from '../lib/dagupanBarangays.js';
 import { validateProfileData } from '../lib/validators.js';
+import { invalidateProductCache } from './productController.js';
 
 const db = getFirestore();
 
@@ -61,6 +62,8 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         shopCity: userData.shopCity || 'Dagupan',
         allowShipping: userData.allowShipping !== false,
         allowPickup: userData.allowPickup === true,
+        allowCod: userData.allowCod !== false,
+        allowGcash: userData.allowGcash === true,
         // Recovery codes info
         codesRemaining,
       },
@@ -83,7 +86,7 @@ export const getUserProfile = asyncHandler(async (req, res) => {
 export const updateUserProfile = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const headerUserId = req.headers['x-user-id'];
-  const { fullName, contactNumber, streetAddress, barangay, city, postalCode, country, gcashName, gcashNumber, shopName, shopAddress, shopBarangay, shopCity, allowShipping, allowPickup } = req.body;
+  const { fullName, contactNumber, streetAddress, barangay, city, postalCode, country, gcashName, gcashNumber, shopName, shopAddress, shopBarangay, shopCity, allowShipping, allowPickup, allowCod, allowGcash } = req.body;
 
   if (!userId) {
     throw new ApiError('User ID is required', 400);
@@ -180,6 +183,8 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     if (shopCity) updateData.shopCity = shopCity;
     updateData.allowShipping = allowShipping !== false;
     updateData.allowPickup = allowPickup === true;
+    updateData.allowCod = allowCod !== false;
+    updateData.allowGcash = allowGcash === true;
 
     updateData.updatedAt = new Date().toISOString();
 
@@ -187,9 +192,11 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
 
     await userRef.update(updateData);
 
-    console.log(`✅ Profile updated: ${userId}`);
+    // Invalidate product cache so updated delivery/payment settings
+    // reflect on product cards in the marketplace immediately
+    invalidateProductCache(userId);
 
-    // Fetch the complete updated profile to return
+    console.log(`✅ Profile updated: ${userId}`);
     const updatedDoc = await userRef.get();
     const userData = updatedDoc.data();
 

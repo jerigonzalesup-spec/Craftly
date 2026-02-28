@@ -13,8 +13,8 @@ class ProfileRepository(private val apiService: ProfileApiService) {
             Result.success(
                 UserProfile(
                     uid = data.uid,
-                    firstName = data.firstName,
-                    lastName = data.lastName,
+                    firstName = data.fullName.split(" ").firstOrNull() ?: "",
+                    lastName = if (data.fullName.contains(" ")) data.fullName.substringAfter(" ") else "",
                     email = data.email,
                     contactNumber = data.contactNumber,
                     streetAddress = data.streetAddress,
@@ -30,7 +30,9 @@ class ProfileRepository(private val apiService: ProfileApiService) {
                     shopCity = data.shopCity,
                     allowShipping = data.allowShipping,
                     allowPickup = data.allowPickup,
-                    roles = data.roles
+                    allowCod = data.allowCod,
+                    allowGcash = data.allowGcash,
+                    roles = if (data.role.isNotBlank()) listOf(data.role) else listOf("buyer")
                 )
             )
         } else {
@@ -44,14 +46,14 @@ class ProfileRepository(private val apiService: ProfileApiService) {
         userId: String,
         profile: UpdateProfileRequest
     ): Result<UserProfile> = try {
-        val response = apiService.updateUserProfile(userId, profile)
+        val response = apiService.updateUserProfile(userId, userId, profile)
         if (response.success && response.data != null) {
             val data = response.data
             Result.success(
                 UserProfile(
                     uid = data.uid,
-                    firstName = data.firstName,
-                    lastName = data.lastName,
+                    firstName = data.fullName.split(" ").firstOrNull() ?: "",
+                    lastName = if (data.fullName.contains(" ")) data.fullName.substringAfter(" ") else "",
                     email = data.email,
                     contactNumber = data.contactNumber,
                     streetAddress = data.streetAddress,
@@ -67,7 +69,9 @@ class ProfileRepository(private val apiService: ProfileApiService) {
                     shopCity = data.shopCity,
                     allowShipping = data.allowShipping,
                     allowPickup = data.allowPickup,
-                    roles = data.roles
+                    allowCod = data.allowCod,
+                    allowGcash = data.allowGcash,
+                    roles = if (data.role.isNotBlank()) listOf(data.role) else listOf("buyer")
                 )
             )
         } else {

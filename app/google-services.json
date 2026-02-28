@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "873033064987-1r2rim8nmo3h3j0hftc4n8a8cfabo1sf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.craftly",
+            "certificate_hash": "d7e4daa88435e86222ba36a7af7ce48bdaed40b3"
+          }
+        },
+        {
           "client_id": "873033064987-vjr9387qgcgokbvjfj6po5ie49i61vj0.apps.googleusercontent.com",
           "client_type": 3
         }

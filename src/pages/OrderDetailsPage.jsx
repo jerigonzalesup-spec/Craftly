@@ -234,6 +234,7 @@ export default function OrderDetailsPage() {
       case 'shipped': return 'default';
       case 'completed': return 'secondary';
       case 'unpaid': return 'destructive';
+      case 'pending_verification': return 'outline';
       case 'paid': return 'default';
       default: return 'secondary';
     }
@@ -280,27 +281,54 @@ export default function OrderDetailsPage() {
                 <div>
                   <p className="text-sm font-medium">Payment</p>
                     {canModifyPayment && !isOrderLocked() ? (
-                        <div className="space-y-1 mt-1">
-                          <Select
-                              defaultValue={order.paymentStatus}
-                              onValueChange={(value) => handlePaymentStatusChange(value)}
-                          >
-                              <SelectTrigger className="w-[120px]">
-                                  <SelectValue>
-                                      <Badge variant={getStatusVariant(order.paymentStatus)} className="capitalize">{order.paymentStatus}</Badge>
-                                  </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="unpaid">Unpaid</SelectItem>
-                                  <SelectItem value="pending">Pending</SelectItem>
-                                  <SelectItem value="paid">Paid</SelectItem>
-                              </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">{getHoursRemaining()}h remaining</p>
+                        <div className="space-y-2 mt-1">
+                          {/* GCash with pending receipt: show Approve / Reject buttons */}
+                          {order.paymentMethod === 'gcash' && order.paymentStatus === 'pending_verification' ? (
+                            <div className="flex gap-2 flex-wrap">
+                              <Badge variant="outline" className="capitalize text-amber-600 border-amber-400 mb-1">Receipt Under Review</Badge>
+                              <div className="flex gap-2 w-full">
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-white text-xs flex-1"
+                                  onClick={() => handlePaymentStatusChange('paid')}
+                                >
+                                  Approve Payment
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="text-xs flex-1"
+                                  onClick={() => handlePaymentStatusChange('unpaid')}
+                                >
+                                  Reject Receipt
+                                </Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{getHoursRemaining()}h remaining to review</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <Select
+                                  defaultValue={order.paymentStatus}
+                                  onValueChange={(value) => handlePaymentStatusChange(value)}
+                              >
+                                  <SelectTrigger className="w-[140px]">
+                                      <SelectValue>
+                                          <Badge variant={getStatusVariant(order.paymentStatus)} className="capitalize">{order.paymentStatus?.replace('_', ' ')}</Badge>
+                                      </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="unpaid">Unpaid</SelectItem>
+                                      <SelectItem value="pending_verification">Under Review</SelectItem>
+                                      <SelectItem value="paid">Paid</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">{getHoursRemaining()}h remaining</p>
+                            </div>
+                          )}
                         </div>
                     ) : (
                       <div className="space-y-1 mt-1">
-                        <Badge variant={getStatusVariant(order.paymentStatus)} className="capitalize">{order.paymentStatus}</Badge>
+                        <Badge variant={getStatusVariant(order.paymentStatus)} className="capitalize">{order.paymentStatus?.replace('_', ' ')}</Badge>
                         {isOrderLocked() && <p className="text-xs text-destructive">Locked (24h passed)</p>}
                       </div>
                     )}
@@ -433,6 +461,21 @@ export default function OrderDetailsPage() {
             <Card>
               <CardHeader><CardTitle>Your GCash Receipt</CardTitle></CardHeader>
               <CardContent>
+                {order.paymentStatus === 'pending_verification' && (
+                  <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
+                    ⏳ Your receipt is being reviewed by the seller. We'll update you once it's confirmed.
+                  </div>
+                )}
+                {order.paymentStatus === 'paid' && (
+                  <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
+                    ✅ Payment confirmed by the seller.
+                  </div>
+                )}
+                {order.paymentStatus === 'unpaid' && !order.receiptImageUrl && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+                    ⚠️ No receipt uploaded yet. Please upload your GCash payment receipt.
+                  </div>
+                )}
                 {order.receiptImageUrl ? (
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">Here's your uploaded payment receipt.</p>

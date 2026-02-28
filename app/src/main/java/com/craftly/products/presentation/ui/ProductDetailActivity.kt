@@ -1,5 +1,6 @@
 package com.craftly.products.presentation.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -19,6 +20,8 @@ import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.cart.data.repository.CartRepository
 import com.craftly.favorites.data.repository.FavoritesRepository
 import com.craftly.databinding.ActivityProductDetailBinding
+import com.craftly.cart.data.models.CartItem
+import com.craftly.checkout.presentation.ui.CheckoutActivity
 import com.craftly.products.data.remote.ProductApiService
 
 class ProductDetailActivity : AppCompatActivity() {
@@ -26,8 +29,8 @@ class ProductDetailActivity : AppCompatActivity() {
     private lateinit var viewModel: ProductDetailViewModel
     private lateinit var cartViewModel: SharedCartViewModel
     private lateinit var favoritesViewModel: SharedFavoritesViewModel
-    private var currentImageIndex = 0
     private var currentProduct: com.craftly.products.data.models.Product? = null
+    private var quantity: Int = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,22 +82,35 @@ class ProductDetailActivity : AppCompatActivity() {
             finish()
         }
 
-        binding.prevImageButton.setOnClickListener {
-            if (currentImageIndex > 0) {
-                currentImageIndex--
-                updateImage()
+        // Quantity selector logic
+        binding.decreaseQuantityButton.setOnClickListener {
+            if (quantity > 1) {
+                quantity--
+                updateQuantityUI()
             }
         }
 
-        binding.nextImageButton.setOnClickListener {
-            if (::viewModel.isInitialized && viewModel.uiState.value is ProductDetailUiState.Success) {
-                val product = (viewModel.uiState.value as ProductDetailUiState.Success).product
-                if (currentImageIndex < product.images.size - 1) {
-                    currentImageIndex++
-                    updateImage()
-                }
+        binding.increaseQuantityButton.setOnClickListener {
+            val availableStock = currentProduct?.stock ?: 0
+            if (quantity < availableStock) {
+                quantity++
+                updateQuantityUI()
             }
         }
+
+        // quantityInput is a plain TextView; no focus/input listener needed
+    }
+
+    private fun updateQuantityUI() {
+        val availableStock = currentProduct?.stock ?: 0
+        binding.quantityInput.text = quantity.toString()
+        binding.availableStockText.text = "$availableStock available"
+
+        // Disable decrease button if quantity is 1
+        binding.decreaseQuantityButton.isEnabled = quantity > 1
+
+        // Disable increase button if quantity >= available stock
+        binding.increaseQuantityButton.isEnabled = quantity < availableStock
     }
 
     private fun observeViewModels() {
@@ -139,6 +155,9 @@ class ProductDetailActivity : AppCompatActivity() {
             binding.errorMessage.visibility = View.GONE
             binding.productContent.visibility = View.VISIBLE
 
+            // RESET QUANTITY at the start of showing new product
+            quantity = 1
+
             // Images carousel
             if (product.images != null && product.images.isNotEmpty()) {
                 updateImage()
@@ -169,8 +188,32 @@ class ProductDetailActivity : AppCompatActivity() {
                 }
             }
 
+            // Check if this is user's own product (calculated early — used in seller tap + UI guards)
+            val prefsManager = SharedPreferencesManager(this)
+            val currentUserId = prefsManager.getUser()?.uid
+            val isOwnProduct = !currentUserId.isNullOrEmpty() && currentUserId == product.createdBy
+
             // Seller
             binding.sellerName.text = String.format(getString(R.string.product_seller_format), product.sellerName ?: getString(R.string.product_unknown_seller))
+
+            // Make seller name tappable → open SellerProfileActivity
+            if (!product.createdBy.isNullOrEmpty() && !isOwnProduct) {
+                binding.sellerName.isClickable = true
+                binding.sellerName.paintFlags = binding.sellerName.paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
+                binding.sellerName.setOnClickListener {
+                    startActivity(
+                        SellerProfileActivity.createIntent(
+                            this,
+                            product.createdBy,
+                            product.sellerName ?: getString(R.string.product_unknown_seller)
+                        )
+                    )
+                }
+            } else {
+                binding.sellerName.isClickable = false
+                binding.sellerName.paintFlags = binding.sellerName.paintFlags and android.graphics.Paint.UNDERLINE_TEXT_FLAG.inv()
+                binding.sellerName.setOnClickListener(null)
+            }
 
             // Description
             binding.productDescription.text = product.description.ifEmpty { getString(R.string.product_no_description) }
@@ -182,41 +225,102 @@ class ProductDetailActivity : AppCompatActivity() {
             binding.shippingBadge.visibility = if (product.allowShipping) View.VISIBLE else View.GONE
             binding.pickupBadge.visibility = if (product.allowPickup) View.VISIBLE else View.GONE
 
-            // Stock
+            // isOwnProduct already computed above — use directly
+
+            if (isOwnProduct) {
+                binding.yourProductBadge.visibility = View.VISIBLE
+                // Hide action buttons for own products (like web)
+                binding.favoriteButton.visibility = View.GONE
+                binding.addToCartButton.visibility = View.GONE
+                binding.buyNowButton.visibility = View.GONE
+                // Show manage product button
+                binding.manageProductButton.visibility = View.VISIBLE
+                binding.manageProductButton.setOnClickListener {
+                    val intent = android.content.Intent(this, SellerProductsActivity::class.java)
+                    intent.putExtra("product_id", product.id)
+                    startActivity(intent)
+                }
+            } else {
+                binding.yourProductBadge.visibility = View.GONE
+                binding.favoriteButton.visibility = View.VISIBLE
+                binding.favoriteButton.isEnabled = true
+                binding.addToCartButton.visibility = View.VISIBLE
+                binding.buyNowButton.visibility = View.VISIBLE
+                binding.manageProductButton.visibility = View.GONE
+            }
+
+            // Stock Status
             binding.stockStatus.text = if (product.stock > 0) {
                 String.format(getString(R.string.product_stock_format), product.stock)
             } else {
                 getString(R.string.product_out_of_stock)
             }
 
+            // Handle Out of Stock overlay
+            if (product.stock <= 0) {
+                binding.outOfStockOverlay.visibility = View.VISIBLE
+                binding.addToCartButton.isEnabled = false
+                binding.buyNowButton.isEnabled = false
+                binding.quantityContainer.visibility = View.GONE
+            } else if (isOwnProduct) {
+                // Hide all purchase controls for own products
+                binding.outOfStockOverlay.visibility = View.GONE
+                binding.quantityContainer.visibility = View.GONE
+            } else {
+                binding.outOfStockOverlay.visibility = View.GONE
+                binding.addToCartButton.isEnabled = true
+                binding.buyNowButton.isEnabled = true
+                binding.quantityContainer.visibility = View.VISIBLE
+                // Quantity already reset at top of showProduct
+                updateQuantityUI()
+            }
+
             // Buttons
             binding.addToCartButton.setOnClickListener {
-                cartViewModel.quickAddToCart(product, quantity = 1)
-            }
-
-            binding.buyNowButton.setOnClickListener {
-                // Add to cart first, then proceed to checkout
-                cartViewModel.quickAddToCart(product, quantity = 1)
-                Toast.makeText(
-                    this,
-                    getString(R.string.product_added_to_cart),
-                    Toast.LENGTH_SHORT
-                ).show()
-                // TODO: Navigate to checkout screen when created
-            }
-
-            binding.favoriteButton.setOnClickListener {
-                val isFavorited = favoritesViewModel.favoritedIds.value?.contains(product.id) ?: false
-                if (isFavorited) {
-                    favoritesViewModel.removeFromFavorites(product.id, product.name)
-                } else {
-                    favoritesViewModel.addToFavorites(product.id, product.name)
+                currentProduct?.let { prod ->
+                    cartViewModel.quickAddToCart(prod, quantity = quantity)
+                    // Reset quantity after add
+                    quantity = 1
+                    updateQuantityUI()
                 }
             }
 
-            // Update favorite button appearance
-            val isFavorited = favoritesViewModel.favoritedIds.value?.contains(product.id) ?: false
-            updateFavoriteButtonAppearance(isFavorited)
+            binding.buyNowButton.setOnClickListener {
+                currentProduct?.let { prod ->
+                    // Build a single-item cart and go straight to checkout
+                    val buyNowItem = CartItem(
+                        id = prod.id,
+                        productId = prod.id,
+                        name = prod.name,
+                        price = prod.price,
+                        quantity = quantity,
+                        image = prod.images.firstOrNull() ?: "",
+                        createdBy = prod.createdBy,
+                        stock = prod.stock,
+                        category = prod.category
+                    )
+                    val intent = Intent(this, CheckoutActivity::class.java)
+                    intent.putExtra("cart_items", arrayListOf(buyNowItem))
+                    startActivity(intent)
+                }
+            }
+
+            binding.favoriteButton.setOnClickListener {
+                if (!isOwnProduct) {
+                    val isFavorited = favoritesViewModel.favoritedIds.value?.contains(product.id) ?: false
+                    if (isFavorited) {
+                        favoritesViewModel.removeFromFavorites(product.id, product.name)
+                    } else {
+                        favoritesViewModel.addToFavorites(product.id, product.name)
+                    }
+                }
+            }
+
+            // Update favorite button appearance (only if not own product)
+            if (!isOwnProduct) {
+                val isFavorited = favoritesViewModel.favoritedIds.value?.contains(product.id) ?: false
+                updateFavoriteButtonAppearance(isFavorited)
+            }
         } catch (e: Exception) {
             android.util.Log.e("ProductDetailActivity", "Error showing product: ${e.message}", e)
             showError(e.message ?: getString(R.string.error_generic))
@@ -227,19 +331,18 @@ class ProductDetailActivity : AppCompatActivity() {
         binding.loadingProgressBar.visibility = View.GONE
         binding.productContent.visibility = View.GONE
         binding.errorMessage.visibility = View.VISIBLE
-        android.widget.Toast.makeText(this, String.format(getString(R.string.product_error_display), message), android.widget.Toast.LENGTH_LONG).show()
+        android.widget.Toast.makeText(this, getString(R.string.product_error_display), android.widget.Toast.LENGTH_LONG).show()
     }
 
     private fun updateImage() {
         try {
             if (::viewModel.isInitialized && viewModel.uiState.value is ProductDetailUiState.Success) {
                 val product = (viewModel.uiState.value as ProductDetailUiState.Success).product
-                if (product.images != null && product.images.isNotEmpty() && currentImageIndex < product.images.size) {
+                if (product.images != null && product.images.isNotEmpty()) {
                     Glide.with(this)
-                        .load(product.images[currentImageIndex])
+                        .load(product.images[0])
                         .centerCrop()
                         .into(binding.productImage)
-                    binding.imageCounter.text = "${currentImageIndex + 1}/${product.images.size}"
                 }
             }
         } catch (e: Exception) {

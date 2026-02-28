@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.craftly.products.data.models.Product
 import com.craftly.products.data.repository.ProductRepository
+import com.craftly.core.utils.ErrorMapper
 import kotlinx.coroutines.launch
 
 sealed class ProductsUiState {
@@ -88,7 +89,7 @@ class ProductsViewModel(private val repository: ProductRepository) : ViewModel()
                 _uiState.value = ProductsUiState.Success(products)
             } catch (e: Exception) {
                 android.util.Log.e("ProductsViewModel", "Error loading products: ${e.message}", e)
-                val errorMessage = e.message ?: "Unknown error occurred"
+                val errorMessage = ErrorMapper.friendlyMessage(e)
                 _uiState.value = ProductsUiState.Error(errorMessage)
             }
         }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import CraftlyLogo from './CraftlyLogo';
 import { CartSheet } from './CartSheet';
 import { UserNav } from './UserNav';
 import { useUser } from '@/firebase/auth/use-user';
@@ -18,8 +19,11 @@ export default function Header() {
   return (
     <header className="bg-background/80 sticky top-0 z-40 w-full border-b border-input backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to="/" className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-red-500 font-headline hover:opacity-80 transition-opacity duration-200">
-          Craftly
+        <Link to="/" className="flex items-center gap-2.5 hover:opacity-85 transition-opacity duration-200 group">
+          <CraftlyLogo size={34} />
+          <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-red-500 font-headline">
+            Craftly
+          </span>
         </Link>
         <div className="flex items-center gap-4">
            {loading ? (

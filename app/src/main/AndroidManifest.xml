@@ -15,22 +15,36 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication"
         android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Splash screen — app entry point -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Craftly.Splash"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
         <!-- Auth Activities -->
         <activity android:name=".auth.presentation.ui.LoginActivity" />
         <activity android:name=".auth.presentation.ui.RegisterActivity" />
+        <activity android:name=".auth.presentation.ui.ForgotPasswordActivity" />
 
         <!-- Product Activities -->
         <activity android:name=".products.presentation.ui.ProductDetailActivity" />
+        <activity android:name=".products.presentation.ui.SellerProductsActivity" />
+        <activity android:name=".products.presentation.ui.ProductFormActivity" />
+        <activity android:name=".products.presentation.ui.SellerProfileActivity" />
+
+        <!-- Order Activities -->
+        <activity android:name=".orders.presentation.ui.SellerSalesActivity" />
+        <activity android:name=".orders.presentation.ui.OrderDetailActivity" />
 
         <!-- Checkout Activity -->
         <activity android:name=".checkout.presentation.ui.CheckoutActivity" />
