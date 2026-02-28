@@ -40,13 +40,13 @@ const corsOriginCheck = (origin, callback) => {
   // Allow requests with no origin (mobile apps, Postman, curl, etc.)
   if (!origin) return callback(null, true);
 
-  // Allow any localhost origin in development
-  if (NODE_ENV === 'development' && origin.startsWith('http://localhost')) {
-    return callback(null, true);
+  // Allow wildcard entry - reflect the origin back (required when credentials: true)
+  if (allowedOrigins.includes('*')) {
+    return callback(null, origin);
   }
 
-  // Allow wildcard entry (e.g. CORS_ORIGIN=*)
-  if (allowedOrigins.includes('*')) {
+  // Allow any localhost origin in development
+  if (NODE_ENV === 'development' && origin.startsWith('http://localhost')) {
     return callback(null, true);
   }
 
