@@ -57,6 +57,16 @@ export default function ProfilePage() {
                     </h1>
                     <p className="text-sm text-muted-foreground truncate mt-0.5">{user.email}</p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
+                        {user.roles?.includes('superadmin') && (
+                            <span className="text-xs bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full font-medium">
+                                Super Admin
+                            </span>
+                        )}
+                        {user.roles?.includes('admin') && !user.roles?.includes('superadmin') && (
+                            <span className="text-xs bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full font-medium">
+                                Admin
+                            </span>
+                        )}
                         {user.roles?.includes('buyer') && (
                             <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full font-medium">
                                 Buyer

@@ -38,12 +38,12 @@ export default function AdminProductsPage() {
 
   const filteredActiveProducts = useMemo(() => {
     if (!searchTerm) return activeProducts;
-    return activeProducts.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return activeProducts.filter(p => (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
   }, [activeProducts, searchTerm]);
 
   const filteredArchivedProducts = useMemo(() => {
       if (!searchTerm) return archivedProducts;
-      return archivedProducts.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      return archivedProducts.filter(p => (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
   }, [archivedProducts, searchTerm]);
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function AdminProductsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="font-medium">{product.name}</TableCell>
-                                        <TableCell>₱{product.price.toFixed(2)}</TableCell>
+                                        <TableCell>₱{(product.price || 0).toFixed(2)}</TableCell>
                                         <TableCell>{product.stock}</TableCell>
                                         <TableCell className="text-right">
                                             <Button size="sm" variant="destructive" onClick={() => handleOpenArchiveDialog(product)}>
@@ -258,7 +258,7 @@ export default function AdminProductsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="font-medium">{product.name}</TableCell>
-                                        <TableCell>₱{product.price.toFixed(2)}</TableCell>
+                                        <TableCell>₱{(product.price || 0).toFixed(2)}</TableCell>
                                         <TableCell className="text-xs text-muted-foreground">{product.archiveReason || 'N/A'}</TableCell>
                                         <TableCell className="text-right">
                                             <Button size="sm" variant="outline" onClick={() => handleOpenRestoreDialog(product)}>

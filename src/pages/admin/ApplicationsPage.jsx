@@ -153,7 +153,7 @@ export default function AdminApplicationsPage() {
 
   const filteredApplications = useMemo(() => {
     if (!searchTerm) return applications;
-    return applications.filter(app => app.shopName.toLowerCase().includes(searchTerm.toLowerCase()));
+    return applications.filter(app => (app.shopName || '').toLowerCase().includes(searchTerm.toLowerCase()));
   }, [applications, searchTerm]);
 
   const pendingApplications = useMemo(() => filteredApplications.filter(app => app.status === 'pending'), [filteredApplications]);

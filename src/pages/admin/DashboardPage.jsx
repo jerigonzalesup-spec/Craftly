@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Package, ShoppingCart, DollarSign, ListChecks, CheckCircle, AlertCircle, TrendingUp, Activity, Wallet } from 'lucide-react';
+import { Users, Package, ShoppingCart, DollarSign, ListChecks, CheckCircle, AlertCircle, TrendingUp, Activity, Wallet, ShieldCheck } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { useUser } from '@/firebase/auth/use-user';
 import { getInitials } from '@/lib/utils';
 import { AdminService } from '@/services/admin/adminService';
+import { Link } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const parseDate = (createdAt) => {
@@ -163,6 +164,25 @@ export default function AdminDashboardPage() {
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-8 font-headline">Admin Dashboard</h1>
 
+      {/* Super Admin setup banner — only show if admin doesn't have superadmin yet */}
+      {user && user.roles?.includes('admin') && !user.roles?.includes('superadmin') && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-md text-amber-800 flex items-start justify-between gap-3 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold">Set up Super Admin</p>
+              <p className="text-sm mt-0.5">No Super Admin has been configured yet. If you are the platform owner, you should claim this role to gain full admin management access.</p>
+            </div>
+          </div>
+          <Link
+            to="/admin/admins"
+            className="shrink-0 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+          >
+            Set up now →
+          </Link>
+        </div>
+      )}
+
       {statsError && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-md text-amber-800 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -180,7 +200,6 @@ export default function AdminDashboardPage() {
           icon={DollarSign}
           loading={loading}
           bgColor="#10b981"
-          trend="↑ 12% from last month"
         />
         <StatCard
           title="Total Users"
@@ -188,7 +207,6 @@ export default function AdminDashboardPage() {
           icon={Users}
           loading={loading}
           bgColor="#3b82f6"
-          trend={`${stats.users} active`}
         />
         <StatCard
           title="Total Products"
@@ -196,7 +214,6 @@ export default function AdminDashboardPage() {
           icon={Package}
           loading={loading}
           bgColor="#f59e0b"
-          trend={`${stats.products} listed`}
         />
         <StatCard
           title="Total Orders"
@@ -204,7 +221,6 @@ export default function AdminDashboardPage() {
           icon={ShoppingCart}
           loading={loading}
           bgColor="#8b5cf6"
-          trend={`${stats.orders} completed`}
         />
         <StatCard
           title="Admin Commission (5%)"
@@ -212,89 +228,79 @@ export default function AdminDashboardPage() {
           icon={Wallet}
           loading={loading}
           bgColor="#ec4899"
-          trend="From platform revenue"
         />
       </div>
 
-      {/* Analytics Section */}
+      {/* Summary Section */}
       <div className="grid gap-6 md:grid-cols-2 mt-8">
-        {/* Revenue Chart */}
+        {/* Commission Breakdown */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Revenue Breakdown
+              Commission Breakdown
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">This Month</span>
-                  <span className="text-sm font-bold">75%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '75%' }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Last Month</span>
-                  <span className="text-sm font-bold">60%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '60%' }} />
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Gross Revenue</span>
+                  <span className="text-sm font-bold">
+                    {loading ? '—' : `₱${stats.revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                  </span>
                 </div>
               </div>
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Last Quarter</span>
-                  <span className="text-sm font-bold">85%</span>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Platform Commission (5%)</span>
+                  <span className="text-sm font-bold text-green-600">
+                    {loading ? '—' : `₱${stats.adminCommission.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                  </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-amber-500 h-2 rounded-full" style={{ width: '85%' }} />
+              </div>
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Seller Earnings (95%)</span>
+                  <span className="text-sm font-bold text-blue-600">
+                    {loading ? '—' : `₱${(stats.revenue * 0.95).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                  </span>
                 </div>
+              </div>
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground">Commission is calculated at 5% of all completed (paid) orders.</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* System Health Card */}
+        {/* Platform Summary */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-500" />
-              System Health
+              Platform Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Database</span>
-                  <span className="text-sm font-bold text-green-600">Healthy</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }} />
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-sm text-muted-foreground">Registered Users</span>
+                <span className="text-sm font-bold">{loading ? '—' : stats.users.toLocaleString()}</span>
               </div>
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">API Response</span>
-                  <span className="text-sm font-bold">96%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '96%' }} />
-                </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-sm text-muted-foreground">Listed Products</span>
+                <span className="text-sm font-bold">{loading ? '—' : stats.products.toLocaleString()}</span>
               </div>
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Storage Used</span>
-                  <span className="text-sm font-bold">45%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '45%' }} />
-                </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-sm text-muted-foreground">Total Orders</span>
+                <span className="text-sm font-bold">{loading ? '—' : stats.orders.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-muted-foreground">Avg. Order Value</span>
+                <span className="text-sm font-bold">
+                  {loading || stats.orders === 0 ? '—' : `₱${(stats.revenue / stats.orders).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -302,13 +308,17 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
+      <p className="mt-8 mb-4 text-xs text-muted-foreground bg-muted/50 border rounded px-3 py-2">
+        ℹ️ The charts below use sample/placeholder data. Historical analytics will be available in a future update.
+      </p>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-0">
         {/* Revenue Trend Chart */}
         <Card className="col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-amber-600" />
               Revenue Trend
+              <span className="ml-1 text-xs font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">Sample Data</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -335,6 +345,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5 text-blue-600" />
               Order Status
+              <span className="ml-1 text-xs font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">Sample Data</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -375,6 +386,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
               User Growth
+              <span className="ml-1 text-xs font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">Sample Data</span>
             </CardTitle>
           </CardHeader>
           <CardContent>

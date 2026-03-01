@@ -62,12 +62,20 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {user.roles?.includes('admin') ? (
-             <DropdownMenuItem asChild>
-                <Link to="/admin/dashboard">
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    <span>Admin Dashboard</span>
-                </Link>
-            </DropdownMenuItem>
+             <>
+                <DropdownMenuItem asChild>
+                    <Link to="/admin/dashboard">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link to="/profile">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>My Profile</span>
+                    </Link>
+                </DropdownMenuItem>
+             </>
         ) : (
             <>
                 {user.roles?.includes('seller') && (
