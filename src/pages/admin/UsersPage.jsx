@@ -65,9 +65,10 @@ export default function AdminUsersPage() {
 
   const filteredUsers = useMemo(() => {
     if (!searchTerm) return users;
+    const term = searchTerm.toLowerCase();
     return users.filter(user =>
-      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (user.fullName || '').toLowerCase().includes(term) ||
+      (user.email || '').toLowerCase().includes(term)
     );
   }, [users, searchTerm]);
 
@@ -187,8 +188,18 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Derive display role from roles array, falling back to legacy role field
+  const getDisplayRole = (user) => {
+    const roles = user.roles || (user.role ? [user.role] : []);
+    if (roles.includes('superadmin')) return 'superadmin';
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('seller')) return 'seller';
+    return roles[0] || user.role || 'buyer';
+  };
+
   const getRoleVariant = (role) => {
     switch (role) {
+      case 'superadmin': return 'destructive';
       case 'admin': return 'destructive';
       case 'seller': return 'default';
       case 'buyer': return 'secondary';
@@ -276,14 +287,14 @@ export default function AdminUsersPage() {
                   <TableCell className="font-medium">{user.fullName}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant={getRoleVariant(user.role)} className="capitalize">{user.role}</Badge>
+                    <Badge variant={getRoleVariant(getDisplayRole(user))} className="capitalize">{getDisplayRole(user)}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(user.accountStatus)} className="capitalize">{user.accountStatus}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end flex-wrap">
-                      {user.uid !== adminUser?.uid && user.role !== 'admin' && (
+                      {user.uid !== adminUser?.uid && !user.roles?.includes('admin') && user.role !== 'admin' && (
                         <>
                           {user.accountStatus !== 'deleted' && (
                             <Button size="sm" variant="outline" onClick={() => openActionDialog(user, 'role')}>

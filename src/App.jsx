@@ -35,6 +35,7 @@ import AdminDashboardPage from './pages/admin/DashboardPage';
 import AdminApplicationsPage from './pages/admin/ApplicationsPage';
 import AdminProductsPage from './pages/admin/ProductsPage';
 import AdminUsersPage from './pages/admin/UsersPage';
+import AdminAdminsPage from './pages/admin/AdminsPage';
 
 // Seller Dashboard Pages
 import DashboardLayout from './pages/dashboard/DashboardLayout';
@@ -79,6 +80,7 @@ function App() {
                       <Route path="/admin/applications" element={<AdminApplicationsPage />} />
                       <Route path="/admin/products" element={<AdminProductsPage />} />
                       <Route path="/admin/users" element={<AdminUsersPage />} />
+                      <Route path="/admin/admins" element={<AdminAdminsPage />} />
                     </Route>
 
                     {/* Seller Dashboard Routes */}

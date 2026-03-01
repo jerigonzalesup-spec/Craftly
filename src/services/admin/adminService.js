@@ -526,4 +526,62 @@ export class AdminService {
       throw error;
     }
   }
+
+  // ─── Superadmin Methods ──────────────────────────────────────────────────
+
+  /**
+   * One-time bootstrap: promote the calling admin to superadmin.
+   * Only succeeds when no superadmin exists yet.
+   */
+  static async setupSuperAdmin(userId) {
+    if (!userId) throw new Error('User ID is required');
+    const response = await fetch(`${API_URL}/api/admin/setup-superadmin`, {
+      method: 'POST',
+      headers: { 'x-user-id': userId },
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || `Failed: ${response.status}`);
+    return json;
+  }
+
+  /**
+   * Get all admin / superadmin users (superadmin only)
+   */
+  static async getAdmins(userId) {
+    if (!userId) throw new Error('User ID is required');
+    const response = await fetch(`${API_URL}/api/admin/admins`, {
+      headers: { 'x-user-id': userId },
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || `Failed: ${response.status}`);
+    return json.data || [];
+  }
+
+  /**
+   * Promote a user to admin (superadmin only)
+   */
+  static async promoteToAdmin(superAdminId, targetUserId) {
+    if (!superAdminId || !targetUserId) throw new Error('IDs required');
+    const response = await fetch(`${API_URL}/api/admin/admins/${targetUserId}/promote`, {
+      method: 'POST',
+      headers: { 'x-user-id': superAdminId },
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || `Failed: ${response.status}`);
+    return json;
+  }
+
+  /**
+   * Remove admin role from a user (superadmin only)
+   */
+  static async demoteAdmin(superAdminId, targetUserId) {
+    if (!superAdminId || !targetUserId) throw new Error('IDs required');
+    const response = await fetch(`${API_URL}/api/admin/admins/${targetUserId}/demote`, {
+      method: 'POST',
+      headers: { 'x-user-id': superAdminId },
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || `Failed: ${response.status}`);
+    return json;
+  }
 }

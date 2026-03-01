@@ -1,6 +1,7 @@
 import { getFirestore } from '../config/firebase.js';
 import { ApiError, asyncHandler } from '../middleware/errorHandler.js';
 import * as emailService from '../services/emailService.js';
+import { convertFirestoreDocToJSON } from '../lib/firestoreUtils.js';
 
 const db = getFirestore();
 
@@ -1130,4 +1131,195 @@ export const getAdminLogs = asyncHandler(async (req, res) => {
     console.error('❌ Error fetching admin logs:', error);
     throw new ApiError(`Failed to fetch admin logs: ${error.message}`, 500);
   }
+});
+
+// ─────────────────────────── SUPERADMIN ENDPOINTS ────────────────────────────
+
+/**
+ * Helper: check if a user document is a superadmin
+ */
+function isSuperAdmin(data) {
+  return data?.roles?.includes('superadmin') || data?.role === 'superadmin';
+}
+
+/**
+ * POST /api/admin/setup-superadmin
+ * One-time bootstrap: promotes the calling admin to superadmin
+ * Only works when no superadmin exists yet on the platform.
+ */
+export const setupSuperAdmin = asyncHandler(async (req, res) => {
+  const headerUserId = req.headers['x-user-id'];
+
+  if (!headerUserId) {
+    throw new ApiError('User ID is required', 400);
+  }
+
+  const adminDoc = await db.collection('users').doc(headerUserId).get();
+  if (!adminDoc.exists || (!adminDoc.data().roles?.includes('admin') && adminDoc.data().role !== 'admin')) {
+    throw new ApiError('Unauthorized - Admin access required', 403);
+  }
+
+  // Only works if no superadmin exists yet
+  const existing = await db.collection('users').where('roles', 'array-contains', 'superadmin').limit(1).get();
+  if (!existing.empty) {
+    throw new ApiError('A Super Admin already exists. Cannot run setup again.', 409);
+  }
+
+  const currentRoles = adminDoc.data().roles || [adminDoc.data().role || 'admin'];
+  if (!currentRoles.includes('superadmin')) currentRoles.push('superadmin');
+  if (!currentRoles.includes('admin')) currentRoles.push('admin');
+
+  await db.collection('users').doc(headerUserId).update({ roles: currentRoles });
+
+  // Log it
+  await db.collection('admin-logs').doc().set({
+    adminId: headerUserId,
+    adminName: adminDoc.data().fullName || adminDoc.data().email,
+    action: `Bootstrapped Super Admin role for self (${adminDoc.data().email}).`,
+    createdAt: new Date().toISOString(),
+  });
+
+  invalidateAdminCache();
+
+  res.status(200).json({ success: true, message: 'You are now a Super Admin.' });
+});
+
+/**
+ * GET /api/admin/admins
+ * List all admin and superadmin users (superadmin only)
+ */
+export const getAdmins = asyncHandler(async (req, res) => {
+  const headerUserId = req.headers['x-user-id'];
+
+  if (!headerUserId) {
+    throw new ApiError('User ID is required', 400);
+  }
+
+  const callerDoc = await db.collection('users').doc(headerUserId).get();
+  if (!callerDoc.exists || !isSuperAdmin(callerDoc.data())) {
+    throw new ApiError('Unauthorized - Super Admin access required', 403);
+  }
+
+  const snapshot = await db.collection('users').where('roles', 'array-contains', 'admin').get();
+  const admins = snapshot.docs.map(doc => {
+    const d = doc.data();
+    return {
+      uid: doc.id,
+      fullName: d.fullName || '',
+      email: d.email || '',
+      roles: d.roles || [d.role || 'admin'],
+      accountStatus: d.accountStatus || 'active',
+      createdAt: typeof d.createdAt === 'string' ? d.createdAt : (d.createdAt?._seconds ? new Date(d.createdAt._seconds * 1000).toISOString() : null),
+    };
+  });
+
+  res.status(200).json({ success: true, data: admins });
+});
+
+/**
+ * POST /api/admin/admins/:userId/promote
+ * Promote a regular user to admin (superadmin only)
+ */
+export const promoteToAdmin = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const headerUserId = req.headers['x-user-id'];
+
+  if (!headerUserId || !userId) {
+    throw new ApiError('Required IDs missing', 400);
+  }
+  if (headerUserId === userId) {
+    throw new ApiError('You cannot change your own admin status.', 400);
+  }
+
+  const callerDoc = await db.collection('users').doc(headerUserId).get();
+  if (!callerDoc.exists || !isSuperAdmin(callerDoc.data())) {
+    throw new ApiError('Unauthorized - Super Admin access required', 403);
+  }
+
+  const targetDoc = await db.collection('users').doc(userId).get();
+  if (!targetDoc.exists) {
+    throw new ApiError('Target user not found', 404);
+  }
+
+  const d = targetDoc.data();
+  const roles = d.roles || (d.role ? [d.role] : ['buyer']);
+  if (!roles.includes('admin')) roles.push('admin');
+
+  await db.collection('users').doc(userId).update({ roles, role: 'admin' });
+
+  // Notification
+  await db.collection('users').doc(userId).collection('notifications').doc().set({
+    message: 'You have been granted Admin access on the platform.',
+    link: '/admin/dashboard',
+    isRead: false,
+    createdAt: new Date().toISOString(),
+  });
+
+  // Log
+  await db.collection('admin-logs').doc().set({
+    adminId: headerUserId,
+    adminName: callerDoc.data().fullName || callerDoc.data().email,
+    action: `Promoted user "${d.email}" (${userId}) to Admin.`,
+    createdAt: new Date().toISOString(),
+  });
+
+  invalidateAdminCache();
+
+  res.status(200).json({ success: true, message: `${d.email} is now an Admin.` });
+});
+
+/**
+ * POST /api/admin/admins/:userId/demote
+ * Remove admin role from a user (superadmin only; cannot demote another superadmin)
+ */
+export const demoteAdmin = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const headerUserId = req.headers['x-user-id'];
+
+  if (!headerUserId || !userId) {
+    throw new ApiError('Required IDs missing', 400);
+  }
+  if (headerUserId === userId) {
+    throw new ApiError('You cannot change your own admin status.', 400);
+  }
+
+  const callerDoc = await db.collection('users').doc(headerUserId).get();
+  if (!callerDoc.exists || !isSuperAdmin(callerDoc.data())) {
+    throw new ApiError('Unauthorized - Super Admin access required', 403);
+  }
+
+  const targetDoc = await db.collection('users').doc(userId).get();
+  if (!targetDoc.exists) {
+    throw new ApiError('Target user not found', 404);
+  }
+
+  const d = targetDoc.data();
+  if (isSuperAdmin(d)) {
+    throw new ApiError('Cannot demote another Super Admin.', 403);
+  }
+
+  const roles = (d.roles || [d.role || 'admin']).filter(r => r !== 'admin');
+  const newRole = roles.includes('seller') ? 'seller' : 'buyer';
+
+  await db.collection('users').doc(userId).update({ roles, role: newRole });
+
+  // Notification
+  await db.collection('users').doc(userId).collection('notifications').doc().set({
+    message: 'Your Admin access on the platform has been removed.',
+    link: '/profile',
+    isRead: false,
+    createdAt: new Date().toISOString(),
+  });
+
+  // Log
+  await db.collection('admin-logs').doc().set({
+    adminId: headerUserId,
+    adminName: callerDoc.data().fullName || callerDoc.data().email,
+    action: `Demoted Admin "${d.email}" (${userId}) to ${newRole}.`,
+    createdAt: new Date().toISOString(),
+  });
+
+  invalidateAdminCache();
+
+  res.status(200).json({ success: true, message: `${d.email} admin access removed.` });
 });

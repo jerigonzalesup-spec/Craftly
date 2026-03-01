@@ -14,6 +14,10 @@ import {
   banUser,
   unbanUser,
   getAdminLogs,
+  setupSuperAdmin,
+  getAdmins,
+  promoteToAdmin,
+  demoteAdmin,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -101,5 +105,31 @@ router.post('/users/:userId/unban', unbanUser);
  * Get admin activity logs
  */
 router.get('/logs', getAdminLogs);
+
+// ─── Superadmin ───────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/admin/setup-superadmin
+ * One-time bootstrap to become the first superadmin
+ */
+router.post('/setup-superadmin', setupSuperAdmin);
+
+/**
+ * GET /api/admin/admins
+ * List all admin users (superadmin only)
+ */
+router.get('/admins', getAdmins);
+
+/**
+ * POST /api/admin/admins/:userId/promote
+ * Promote a user to admin (superadmin only)
+ */
+router.post('/admins/:userId/promote', promoteToAdmin);
+
+/**
+ * POST /api/admin/admins/:userId/demote
+ * Remove admin role from a user (superadmin only)
+ */
+router.post('/admins/:userId/demote', demoteAdmin);
 
 export default router;
