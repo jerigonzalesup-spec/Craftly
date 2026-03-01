@@ -74,7 +74,7 @@ export default function ProfilePage() {
             <div className="space-y-8">
                 <ProfileForm />
                 <ChangePasswordForm />
-                {user.roles?.includes('buyer') && <BecomeSellerSection />}
+                {user.roles?.includes('buyer') && !user.roles?.includes('seller') && <BecomeSellerSection />}
                 <Card className="border-destructive/20">
                     <CardHeader>
                         <CardTitle className="text-destructive">Log Out</CardTitle>

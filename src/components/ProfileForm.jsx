@@ -21,11 +21,9 @@ import { isValidBarangay } from '@/lib/dagupanBarangays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Store, CreditCard, Truck, ShieldCheck } from 'lucide-react';
+import { User, Phone, MapPin, Store, CreditCard, Truck } from 'lucide-react';
 import { BarangayInput } from '@/components/BarangayInput';
-import { RecoveryCodesSection } from '@/components/RecoveryCodesSection';
 import { useBarangaySuggestions } from '@/hooks/useBarangaySuggestions';
-import { useRecoveryCodes } from '@/hooks/useRecoveryCodes';
 import { SCHEMAS, MESSAGES } from '@/lib/formValidation';
 
 const formSchema = z.object({
@@ -80,9 +78,6 @@ export function ProfileForm() {
   // Barangay state management using custom hooks
   const barangay = useBarangaySuggestions();
   const shopBarangay = useBarangaySuggestions();
-
-  // Recovery codes state and handlers
-  const recoveryCodes = useRecoveryCodes(user);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -691,24 +686,6 @@ export function ProfileForm() {
                 </div>
               )}
             </div>)}
-
-            {/* Recovery Codes Section */}
-            <RecoveryCodesSection
-              codesRemaining={recoveryCodes.codesRemaining}
-              showPasswordModal={recoveryCodes.showPasswordModal}
-              setShowPasswordModal={recoveryCodes.setShowPasswordModal}
-              showCodesModal={recoveryCodes.showCodesModal}
-              setShowCodesModal={recoveryCodes.setShowCodesModal}
-              recoveryCodes={recoveryCodes.recoveryCodes}
-              passwordInput={recoveryCodes.passwordInput}
-              setPasswordInput={recoveryCodes.setPasswordInput}
-              copiedCodes={recoveryCodes.copiedCodes}
-              loadingCodes={recoveryCodes.loadingCodes}
-              onViewRecoveryCodes={recoveryCodes.handleViewRecoveryCodes}
-              onCopyCodes={recoveryCodes.handleCopyCodes}
-              onDownloadCodes={recoveryCodes.handleDownloadCodes}
-              onCloseCodesModal={recoveryCodes.handleCloseCodesModal}
-            />
 
             <Button
               type="submit"
