@@ -12,7 +12,7 @@ import { getImageUrl } from '@/lib/image-utils';
 export function AddToCartForm({ product }) {
   const { user } = useUser();
   const [quantity, setQuantity] = useState(1);
-  const { cartItems, addToCart } = useCart();
+  const { cartItems, addToCart, clearCart } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -53,6 +53,10 @@ export function AddToCartForm({ product }) {
   }
 
   const handleBuyNow = () => {
+    // Clear any existing cart items first so only this specific product
+    // appears in the checkout — prevents a previous user's cart (or the
+    // current user's earlier session) from leaking into the order summary.
+    clearCart();
     if (executeAddToCart(false)) {
         navigate('/checkout');
     }

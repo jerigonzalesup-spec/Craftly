@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from './use-toast';
 import { CartService } from '@/services/cart/cartService';
@@ -13,36 +13,54 @@ export function useCartViewModel() {
   const { toast } = useToast();
   const { user, loading: userLoading } = useUser();
 
-  // Load cart from user-specific storage when user becomes available
+  // Tracks which user's cart has been loaded into React state.
+  // Used to distinguish between the initial storage-load update (skip save)
+  // and genuine user actions (add/remove/update — do save).
+  // This prevents the race condition where switching accounts would write
+  // the old user's cart into the new user's storage slot.
+  const cartInitializedForRef = useRef(null);
+
+  // Load cart from user-specific storage when the logged-in user changes.
   useEffect(() => {
-    if (!userLoading && user && user.uid) {
-      console.log(`🛒 Loading cart for user ${user.uid}`);
+    // Reset the initialization flag so the persist effect knows the next
+    // cartItems change is the storage load, not a user action.
+    cartInitializedForRef.current = null;
+
+    if (!userLoading && user?.uid) {
       const cartFromStorage = CartService.loadCartFromStorage(user.uid);
-      console.log(`🛒 Cart loaded from storage:`, {
-        itemCount: cartFromStorage.length,
-        items: cartFromStorage.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity }))
-      });
       setCartItems(cartFromStorage);
     } else if (!userLoading && !user) {
-      // User logged out or not loaded
-      console.log('🛒 No user logged in, clearing cart state (localStorage persists for next login)');
       setCartItems([]);
     }
-  }, [user?.uid, userLoading]); // Only re-run when user.uid or loading status changes
+  }, [user?.uid, userLoading]);
 
-  // Persist cart to localStorage whenever it changes (only if user is logged in)
+  // Persist & sync cart whenever cartItems changes.
+  //
+  // IMPORTANT: this effect intentionally does NOT depend on user?.uid.
+  // If it did, it would also fire when the user switches — at that moment
+  // cartItems still holds the OLD user's data, so we'd corrupt the new
+  // user's storage slot before the load effect above has a chance to
+  // overwrite cartItems with the correct data.
+  //
+  // Instead, we let the load effect signal readiness via cartInitializedForRef.
+  // The FIRST time cartItems changes after a user switch it's always the
+  // initial storage load — we skip saving that run. Every subsequent change
+  // (add/remove/update) is a genuine user action and we persist it.
   useEffect(() => {
-    if (user && user.uid && cartItems.length >= 0) {
-      CartService.saveCartToStorage(user.uid, cartItems);
-    }
-  }, [user?.uid, cartItems]); // Only re-run when user.uid or cartItems changes
+    if (!user?.uid) return;
 
-  // Sync cart to API whenever it changes (if user is logged in)
-  useEffect(() => {
-    if (user && user.uid) {
-      CartService.syncCartToAPI(user.uid, cartItems);
+    if (cartInitializedForRef.current !== user.uid) {
+      // First cartItems update for this user — it came from loading storage.
+      // Mark this user as initialized and do NOT save (avoid a redundant write
+      // and, critically, avoid writing stale data from a previous user).
+      cartInitializedForRef.current = user.uid;
+      return;
     }
-  }, [user?.uid, cartItems]); // Only re-run when user.uid or cartItems changes
+
+    // Genuine user action — persist to localStorage and sync to API.
+    CartService.saveCartToStorage(user.uid, cartItems);
+    CartService.syncCartToAPI(user.uid, cartItems);
+  }, [cartItems]); // deliberately ONLY cartItems — see comment above
 
   // Action: Add to cart
   const addToCart = useCallback(
