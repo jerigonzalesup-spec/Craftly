@@ -17,7 +17,7 @@ import { signIn } from '@/firebase/auth/auth';
 import { useToast } from '@/hooks/use-toast';
 import { convertApiErrorMessage } from '@/lib/errorMessages';
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 
 const formSchema = z.object({
@@ -40,7 +40,7 @@ export function LoginForm() {
 
   async function onSubmit(values) {
     try {
-      const userData = await signIn(values);
+      const userData = await signIn({ ...values, email: values.email.trim().toLowerCase() });
       toast({
         title: 'Login Successful',
         description: 'Welcome back!',
@@ -127,7 +127,9 @@ export function LoginForm() {
               )}
             />
             <Button type="submit" className="w-full bg-gradient-to-r from-amber-600 to-red-500 hover:from-amber-700 hover:to-red-600 text-white shadow-lg shadow-amber-600/50 hover:shadow-amber-600/75 transition-all duration-300" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Logging in...' : 'Login'}
+              {form.formState.isSubmitting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Logging in...</>
+              ) : 'Login'}
             </Button>
           </form>
         </Form>

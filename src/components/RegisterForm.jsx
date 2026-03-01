@@ -15,8 +15,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { signUp } from '@/firebase/auth/auth';
 import { useToast } from '@/hooks/use-toast';
 import { convertApiErrorMessage } from '@/lib/errorMessages';
-import { useState } from 'react';
-import { Eye, EyeOff, Check, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, EyeOff, Check, X, Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' })
@@ -55,6 +55,13 @@ export function RegisterForm() {
   const [pendingFormData, setPendingFormData] = useState(null);
   const [verificationAttempts, setVerificationAttempts] = useState(0);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handlePasswordChange = (value) => {
     setPasswordStrength({
@@ -109,9 +116,10 @@ export function RegisterForm() {
       setVerificationCode('');
       setVerificationAttempts(0);
 
+      setResendCooldown(60);
       toast({
         title: 'Verification Code Sent',
-        description: `Check your Gmail inbox for the 6-digit verification code`,
+        description: `Check your Gmail inbox for the 6-digit code. It may take up to a minute to arrive.`,
       });
     } catch (error) {
       console.error('❌ Error sending verification code:', error);
@@ -247,7 +255,7 @@ export function RegisterForm() {
               className="text-center text-2xl tracking-widest mt-2"
             />
             <p className="text-xs text-amber-600 mt-2">
-              Code expires in 2 minutes • Attempt {verificationAttempts + 1} of 5
+              Code expires in 10 minutes • Attempt {verificationAttempts + 1} of 5
             </p>
           </div>
 
@@ -256,7 +264,9 @@ export function RegisterForm() {
             disabled={verificationCode.length !== 6 || isVerifying}
             className="w-full bg-gradient-to-r from-amber-600 to-red-500 hover:from-amber-700 hover:to-red-600 text-white shadow-lg shadow-amber-600/50 transition-all duration-300"
           >
-            {isVerifying ? 'Verifying...' : 'Verify & Create Account'}
+            {isVerifying ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying...</>
+            ) : 'Verify & Create Account'}
           </Button>
 
           <Button
@@ -279,13 +289,12 @@ export function RegisterForm() {
             size="sm"
             className="w-full text-xs text-amber-400 hover:text-red-400"
             onClick={() => {
-              // Resend code
               onSubmit(pendingFormData);
               setVerificationAttempts(0);
             }}
-            disabled={isVerifying}
+            disabled={isVerifying || resendCooldown > 0}
           >
-            Didn't receive code? Resend
+            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Didn't receive code? Resend"}
           </Button>
         </div>
       </>
@@ -411,7 +420,9 @@ export function RegisterForm() {
               )}
             />
             <Button type="submit" className="w-full bg-gradient-to-r from-amber-600 to-red-500 hover:from-amber-700 hover:to-red-600 text-white shadow-lg shadow-amber-600/50 hover:shadow-amber-600/75 transition-all duration-300" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Sending Code...' : 'Create Account'}
+              {form.formState.isSubmitting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending verification code...</>
+              ) : 'Create Account'}
             </Button>
           </form>
         </Form>

@@ -245,26 +245,14 @@ export const sendEmailVerificationCode = asyncHandler(async (req, res) => {
       throw new ApiError('Email already in use', 400);
     }
 
-    // Check if full name already exists (prevent duplicate name accounts)
-    if (fullName) {
-      const normalizedFullName = fullName.trim().toLowerCase();
-      const existingNameUser = await db.collection('users')
-        .where('fullName', '==', normalizedFullName)
-        .get();
-
-      if (!existingNameUser.empty) {
-        throw new ApiError('An account with this name already exists. Please use a different name or contact support.', 400);
-      }
-    }
-
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const codeHash = crypto.createHash('sha256').update(code).digest('hex');
 
     console.log(`📧 Generated verification code: ${code}, Hash: ${codeHash.substring(0, 16)}...`);
 
-    // Store verification data with 2-minute expiry (using Unix timestamp for reliable Firestore comparison)
-    const expiresAt = Date.now() + (2 * 60 * 1000);
+    // Store verification data with 10-minute expiry (using Unix timestamp for reliable Firestore comparison)
+    const expiresAt = Date.now() + (10 * 60 * 1000);
 
     const emailVerificationRef = db.collection('emailVerifications').doc(email.toLowerCase());
     await emailVerificationRef.set({

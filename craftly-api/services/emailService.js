@@ -189,11 +189,11 @@ export const sendEmailVerificationCode = async (email, code) => {
           <p>Thank you for registering with Craftly. Enter this code to complete your account setup:</p>
 
           <div style="background-color: #e3f2fd; padding: 20px; border-radius: 4px; margin: 20px 0; text-align: center;">
-            <p style="color: #1976d2; margin: 0; font-size: 12px;">Your verification code (expires in 2 minutes):</p>
+            <p style="color: #1976d2; margin: 0; font-size: 12px;">Your verification code (expires in 10 minutes):</p>
             <p style="color: #1565c0; margin: 10px 0 0 0; font-size: 32px; font-weight: bold; letter-spacing: 2px; font-family: monospace;">${code}</p>
           </div>
 
-          <p style="color: #666;">This code is valid for 2 minutes. If you didn't register, you can safely ignore this email.</p>
+          <p style="color: #666;">This code is valid for 10 minutes. If you didn't register, you can safely ignore this email.</p>
         </div>
         <div style="background-color: #1a1a1a; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 3px solid #D97706;">
           <p style="margin: 0;">&copy; 2026 Craftly &mdash; Dagupan, Pangasinan, Philippines</p><p style="margin: 4px 0 0 0;">You received this because you have an account on Craftly.</p>
