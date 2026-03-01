@@ -13,7 +13,6 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 
 function getDb() {
@@ -26,7 +25,7 @@ function getDb() {
  * caused by Firestore listeners firing before request.auth is populated.
  */
 function waitForAuth() {
-  const auth = getAuth();
+  const { auth } = initializeFirebase();
   return auth.authStateReady().then(() => auth.currentUser);
 }
 
