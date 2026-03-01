@@ -142,7 +142,6 @@ export function ProfileForm() {
           });
           barangay.setInput(profile.barangay || '');
           shopBarangay.setInput(profile.shopBarangay || '');
-          recoveryCodes.setCodesRemaining(profile.codesRemaining || 0);
         }
       } finally {
         setProfileLoading(false);

@@ -43,6 +43,7 @@ export function buildConversationId(uid1, uid2) {
  * Returns the conversationId.
  */
 export async function getOrCreateConversation(currentUser, otherUser) {
+  await waitForAuth();
   const db = getDb();
   const conversationId = buildConversationId(currentUser.uid, otherUser.uid);
   const ref = doc(db, 'conversations', conversationId);
@@ -73,6 +74,7 @@ export async function getOrCreateConversation(currentUser, otherUser) {
  * Send a message in a conversation.
  */
 export async function sendMessage(conversationId, senderId, senderName, text) {
+  await waitForAuth();
   const db = getDb();
   const messagesRef = collection(db, 'conversations', conversationId, 'messages');
   const conversationRef = doc(db, 'conversations', conversationId);
@@ -106,6 +108,7 @@ export async function sendMessage(conversationId, senderId, senderName, text) {
  * Mark all messages in a conversation as read for a specific user.
  */
 export async function markConversationRead(conversationId, userId) {
+  await waitForAuth();
   const db = getDb();
   const ref = doc(db, 'conversations', conversationId);
   await updateDoc(ref, {
