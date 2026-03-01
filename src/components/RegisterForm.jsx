@@ -20,12 +20,12 @@ import { Eye, EyeOff, Check, X, Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' })
-    .regex(/^[a-zA-Z\s'-]+$/, { message: 'First name must contain only letters, spaces, hyphens, and apostrophes.' }),
+    .regex(/^[a-zA-Z\s'.,-]+$/, { message: 'First name can only contain letters, spaces, dots, hyphens, apostrophes, and commas.' }),
   lastName: z.string().min(2, { message: 'Last name must be at least 2 characters.' })
-    .regex(/^[a-zA-Z\s'-]+$/, { message: 'Last name must contain only letters, spaces, hyphens, and apostrophes.' }),
-  username: z.string().min(3, { message: 'Username must be at least 3 characters.' })
-    .regex(/^[a-zA-Z0-9._-]+$/, { message: 'Username can only contain letters, numbers, dots, hyphens, and underscores.' })
-    .refine(val => !val.includes('@'), { message: 'Username cannot contain @ symbol.' }),
+    .regex(/^[a-zA-Z\s'.,-]+$/, { message: 'Last name can only contain letters, spaces, dots, hyphens, apostrophes, and commas.' }),
+  username: z.string().min(3, { message: 'Gmail username must be at least 3 characters.' })
+    .regex(/^[a-zA-Z0-9._-]+$/, { message: 'Gmail username can only contain letters, numbers, dots, hyphens, and underscores.' })
+    .refine(val => !val.includes('@'), { message: 'Do not include @gmail.com — just enter the part before it.' }),
   password: z.string()
     .min(8, { message: 'Password must be at least 8 characters.' })
     .regex(/[A-Z]/, { message: 'Password must include at least 1 uppercase letter.' })
