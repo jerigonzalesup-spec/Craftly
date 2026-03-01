@@ -13,10 +13,21 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 
 function getDb() {
   return initializeFirebase().firestore;
+}
+
+/**
+ * Returns a Promise that resolves with the current Firebase Auth user once
+ * the session has been fully restored. Prevents permission-denied errors
+ * caused by Firestore listeners firing before request.auth is populated.
+ */
+function waitForAuth() {
+  const auth = getAuth();
+  return auth.authStateReady().then(() => auth.currentUser);
 }
 
 /**
@@ -108,17 +119,28 @@ export async function markConversationRead(conversationId, userId) {
  */
 export function subscribeToConversations(userId, callback) {
   const db = getDb();
-  const q = query(
-    collection(db, 'conversations'),
-    where('participants', 'array-contains', userId),
-    orderBy('lastMessageAt', 'desc'),
-    limit(50)
-  );
+  let unsub = null;
 
-  return onSnapshot(q, (snapshot) => {
-    const conversations = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    callback(conversations);
+  // Wait for Firebase Auth to fully restore the session before attaching
+  // the Firestore listener. Without this, request.auth is null on first
+  // render (user comes from localStorage) → permission-denied.
+  waitForAuth().then((firebaseUser) => {
+    if (!firebaseUser || firebaseUser.uid !== userId) return;
+
+    const q = query(
+      collection(db, 'conversations'),
+      where('participants', 'array-contains', userId),
+      orderBy('lastMessageAt', 'desc'),
+      limit(50)
+    );
+
+    unsub = onSnapshot(q, (snapshot) => {
+      const conversations = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      callback(conversations);
+    });
   });
+
+  return () => { if (unsub) unsub(); };
 }
 
 /**
@@ -127,14 +149,22 @@ export function subscribeToConversations(userId, callback) {
  */
 export function subscribeToMessages(conversationId, callback) {
   const db = getDb();
-  const q = query(
-    collection(db, 'conversations', conversationId, 'messages'),
-    orderBy('createdAt', 'asc'),
-    limit(100)
-  );
+  let unsub = null;
 
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    callback(messages);
+  waitForAuth().then((firebaseUser) => {
+    if (!firebaseUser) return;
+
+    const q = query(
+      collection(db, 'conversations', conversationId, 'messages'),
+      orderBy('createdAt', 'asc'),
+      limit(100)
+    );
+
+    unsub = onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      callback(messages);
+    });
   });
+
+  return () => { if (unsub) unsub(); };
 }
