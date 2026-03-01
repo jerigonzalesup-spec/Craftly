@@ -25,6 +25,7 @@ import com.craftly.orders.presentation.ui.OrdersFragment
 import com.craftly.products.presentation.ui.MarketplaceFragment
 import com.craftly.profile.presentation.ui.ProfileFragment
 import com.craftly.cart.presentation.ui.CartFragment
+import com.craftly.messaging.presentation.ui.ConversationsFragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
@@ -130,6 +131,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_favorites -> FavoritesFragment()
                 R.id.nav_cart -> CartFragment()
                 R.id.nav_orders -> OrdersFragment()
+                R.id.nav_messages -> ConversationsFragment()
                 R.id.nav_profile -> ProfileFragment()
                 else -> MarketplaceFragment()
             }

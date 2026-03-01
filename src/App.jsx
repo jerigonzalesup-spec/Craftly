@@ -26,6 +26,8 @@ import OrderDetailsPage from './pages/OrderDetailsPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import SellerProfilePage from './pages/SellerProfilePage';
+import MessagesPage from './pages/MessagesPage';
+import ChatPage from './pages/ChatPage';
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -68,6 +70,8 @@ function App() {
                     <Route path="/orders/:orderId" element={<OrderDetailsPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
                     <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
+                    <Route path="/messages" element={<MessagesPage />} />
+                    <Route path="/messages/:conversationId" element={<ChatPage />} />
 
                     {/* Admin Routes */}
                     <Route element={<AdminLayout />}>

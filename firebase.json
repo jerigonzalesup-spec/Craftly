@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "craftly-ph",
     "public": "dist",
     "ignore": [
       "firebase.json",

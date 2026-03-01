@@ -1,20 +1,38 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { Skeleton } from '../components/ui/skeleton';
 import { ProductCard } from '../components/ProductCard';
 import { Button } from '../components/ui/button';
 import { useUser } from '../firebase/auth/use-user';
-import { ChevronLeft, Star, MapPin, Truck, MapPinOff } from 'lucide-react';
+import { ChevronLeft, Star, MapPin, Truck, MapPinOff, MessageSquare, Loader2 } from 'lucide-react';
 import { SellerMap } from '../components/SellerMap';
+import { getOrCreateConversation } from '@/services/messagingService';
 
 export default function SellerProfilePage() {
   const params = useParams();
   const sellerId = params?.sellerId;
   const navigate = useNavigate();
   const { user: authUser } = useUser();
+  const [messagingLoading, setMessagingLoading] = useState(false);
 
   const { profile: seller, loading, error, products, productsLoading, notFound } = useUserProfile(sellerId);
+
+  const handleMessageSeller = async () => {
+    if (!authUser || !seller) return;
+    setMessagingLoading(true);
+    try {
+      const conversationId = await getOrCreateConversation(
+        { uid: authUser.uid, displayName: authUser.displayName || authUser.email },
+        { uid: sellerId, displayName: seller.fullName || seller.email }
+      );
+      navigate(`/messages/${conversationId}`);
+    } catch (e) {
+      console.error('Failed to open conversation:', e);
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -92,8 +110,16 @@ export default function SellerProfilePage() {
 
             {/* Action Button */}
             {authUser && authUser.uid !== sellerId && (
-              <Button className="mr-3">
-                Message Seller
+              <Button
+                onClick={handleMessageSeller}
+                disabled={messagingLoading}
+                className="mr-3 bg-gradient-to-r from-amber-600 to-red-500 hover:from-amber-700 hover:to-red-600 text-white"
+              >
+                {messagingLoading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Opening...</>
+                ) : (
+                  <><MessageSquare className="mr-2 h-4 w-4" />Message Seller</>
+                )}
               </Button>
             )}
             {authUser && authUser.uid === sellerId && (

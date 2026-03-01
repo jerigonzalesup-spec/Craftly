@@ -48,6 +48,11 @@
 
         <!-- Checkout Activity -->
         <activity android:name=".checkout.presentation.ui.CheckoutActivity" />
+
+        <!-- Messaging Activities -->
+        <activity
+            android:name=".messaging.presentation.ui.ChatActivity"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

@@ -6,12 +6,24 @@ import { useUser } from '@/firebase/auth/use-user';
 import { Skeleton } from './ui/skeleton';
 import { NotificationSheet } from './NotificationSheet';
 import { useTheme } from '@/context/ThemeContext';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
+import { useEffect, useState } from 'react';
+import { subscribeToConversations } from '@/services/messagingService';
 
 export default function Header() {
   const { user, loading } = useUser();
   const { theme, toggleTheme, mounted } = useTheme();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeToConversations(user.uid, (convs) => {
+      const total = convs.reduce((sum, c) => sum + (c.unreadCount?.[user.uid] || 0), 0);
+      setUnreadMessages(total);
+    });
+    return () => unsub();
+  }, [user]);
 
   const isAdmin = user && user.roles?.includes('admin');
   const isBuyerOrSeller = user && (user.roles?.includes('buyer') || user.roles?.includes('seller'));
@@ -79,6 +91,16 @@ export default function Header() {
                 </Button>
               )}
               <NotificationSheet />
+              <Link to="/messages" className="relative">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground transition-colors duration-200">
+                  <MessageSquare className="h-5 w-5" />
+                  {unreadMessages > 0 && (
+                    <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {unreadMessages > 9 ? '9+' : unreadMessages}
+                    </span>
+                  )}
+                </Button>
+              </Link>
               <CartSheet />
               <UserNav />
             </>

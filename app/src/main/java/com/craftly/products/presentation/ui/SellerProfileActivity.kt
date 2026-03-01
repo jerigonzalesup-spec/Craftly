@@ -7,8 +7,11 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.craftly.auth.data.local.SharedPreferencesManager
 import com.craftly.core.network.NetworkConfig
 import com.craftly.databinding.ActivitySellerProfileBinding
+import com.craftly.messaging.data.repository.MessagingRepository
+import com.craftly.messaging.presentation.ui.ChatActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,6 +50,39 @@ class SellerProfileActivity : AppCompatActivity() {
         val sellerName = intent.getStringExtra(EXTRA_SELLER_NAME) ?: "Seller"
 
         binding.backButton.setOnClickListener { finish() }
+
+        // Message Seller button
+        val prefsManager = SharedPreferencesManager(this)
+        val currentUser = prefsManager.getUser()
+        if (currentUser != null && currentUser.uid != sellerId) {
+            binding.btnMessageSeller.visibility = View.VISIBLE
+            binding.btnMessageSeller.setOnClickListener {
+                binding.btnMessageSeller.isEnabled = false
+                val repo = MessagingRepository()
+                lifecycleScope.launch {
+                    try {
+                        val conversationId = repo.getOrCreateConversation(
+                            currentUid = currentUser.uid,
+                            currentName = currentUser.displayName,
+                            otherUid = sellerId,
+                            otherName = sellerName
+                        )
+                        startActivity(
+                            Intent(this@SellerProfileActivity, ChatActivity::class.java).apply {
+                                putExtra(ChatActivity.EXTRA_CONVERSATION_ID, conversationId)
+                                putExtra(ChatActivity.EXTRA_OTHER_NAME, sellerName)
+                            }
+                        )
+                    } catch (e: Exception) {
+                        Toast.makeText(this@SellerProfileActivity, "Could not start chat", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        binding.btnMessageSeller.isEnabled = true
+                    }
+                }
+            }
+        } else {
+            binding.btnMessageSeller.visibility = View.GONE
+        }
 
         // Show basic info immediately
         binding.sellerFullName.text = sellerName
